@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "مروج | Murwaj",
+    "slug": "murwaj-mobile",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "murwaj",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.murwaj.customer"
+    },
+    "android": {
+      "package": "com.murwaj.customer"
+    },
+    "plugins": ["expo-secure-store", "expo-web-browser", "expo-router"],
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
