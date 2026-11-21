@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Api, ApiError } from './core/api';
 import { SessionStore } from './core/session';
-import type { AuthReply, Locale, Session, User } from './core/types';
+import type { AuthReply, Locale, MobileConfig, Session, User } from './core/types';
 import { config } from './config';
 import { native, vault } from './vault';
 
@@ -31,6 +31,7 @@ type Context = {
   ready: boolean;
   checked: boolean;
   issue: string;
+  mobileConfig: MobileConfig | null;
   authenticate: (kind: 'login' | 'register', body: Record<string, unknown>) => Promise<void>;
   logout: () => Promise<void>;
   recheck: () => Promise<void>;
@@ -43,6 +44,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [checked, setChecked] = useState(false);
   const [issue, setIssue] = useState('');
+  const [mobileConfig, setMobileConfig] = useState<MobileConfig | null>(null);
   const lock = useRef(false);
   useEffect(() => {
     notify = () => {
@@ -53,6 +55,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       notify = () => {};
     };
   }, []);
+  useEffect(() => {
+    let active = true;
+
+    void api
+      .request<{ data: MobileConfig }>('/mobile/config', null, locale)
+      .then((reply) => {
+        if (active) setMobileConfig(reply.data);
+      })
+      .catch(() => {
+        // Keep the local brand fallback if the public config is unavailable.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [locale]);
+
   async function recheck() {
     setIssue('');
     try {
@@ -144,6 +163,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         ready,
         checked,
         issue,
+        mobileConfig,
         authenticate,
         logout,
         recheck,

@@ -1,4 +1,24 @@
 export type Locale = 'ar' | 'en';
+
+export type MobileConfig = {
+  brand: {
+    name: string;
+    name_ar: string;
+    logo_url: string | null;
+  };
+  promo: null | {
+    enabled: boolean;
+    text: { en: string | null; ar: string | null };
+    url: string | null;
+    background_color: string;
+    text_color: string;
+    animation: 'marquee' | 'fade' | 'static';
+    duration_seconds: number;
+    dismissible: boolean;
+    starts_at: string | null;
+    ends_at: string | null;
+  };
+};
 export type Shop = {
   id: number;
   slug: string;
@@ -6,6 +26,7 @@ export type Shop = {
   name_ar?: string | null;
   description?: string;
   logo_url?: string | null;
+  banner_url?: string | null;
   verified?: boolean;
 };
 export type Product = {
@@ -114,4 +135,52 @@ export type Device = {
   expires_at: string | null;
   current?: boolean;
   is_current?: boolean;
+};
+
+
+export type MobileHomeCategory = {
+  id: number;
+  name: string;
+  name_ar?: string | null;
+  slug: string;
+  image?: string | null;
+  section_id?: number | null;
+};
+
+export type MobileHomeCatalogSection = {
+  id: number;
+  name: string;
+  name_ar?: string | null;
+  slug: string;
+  image?: string | null;
+};
+
+export type MobileHomeSection = {
+  id: string | null;
+  type:
+    | 'products_latest'
+    | 'products_featured'
+    | 'shops_latest'
+    | 'shops_selected'
+    | 'categories'
+    | 'catalog_sections'
+    | 'editorial';
+  title?: string | null;
+  title_ar?: string | null;
+  position: number;
+  items?: (Product | Shop | MobileHomeCategory | MobileHomeCatalogSection)[];
+  content?: string | null;
+  content_ar?: string | null;
+  button_text?: string | null;
+  button_text_ar?: string | null;
+  button_url?: string | null;
+};
+
+export type MobileHomePayload = {
+  schema_version: number;
+  sections: MobileHomeSection[];
+};
+
+export type MobileHomeReply = {
+  data: MobileHomePayload;
 };
