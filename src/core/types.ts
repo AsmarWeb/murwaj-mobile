@@ -160,11 +160,13 @@ export type MobileHomeSection = {
   type:
     | 'products_latest'
     | 'products_featured'
+    | 'products_selected'
     | 'shops_latest'
     | 'shops_selected'
     | 'categories'
     | 'catalog_sections'
-    | 'editorial';
+    | 'editorial'
+    | 'banner';
   title?: string | null;
   title_ar?: string | null;
   position: number;
@@ -174,6 +176,7 @@ export type MobileHomeSection = {
   button_text?: string | null;
   button_text_ar?: string | null;
   button_url?: string | null;
+  image?: string | null;
 };
 
 export type MobileHomePayload = {

@@ -1,6 +1,8 @@
 import React from 'react';
-import { ScrollView, View } from 'react-native';
+import { ImageBackground, ScrollView, Text, View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+
+import { httpsUrl } from '../core/api';
 
 import { useApp } from '../session-context';
 import { usePublicQuery } from '../use-public-query';
@@ -76,6 +78,104 @@ function HomeSection({ section }: { section: MobileHomeSection }) {
 
   const items = section.items ?? [];
 
+
+  if (section.type === 'banner') {
+    const imageUrl =
+      typeof section.image === 'string' && /^https?:\/\//i.test(section.image.trim())
+        ? section.image.trim()
+        : null;
+
+    const content =
+      locale === 'ar'
+        ? section.content_ar || section.content
+        : section.content || section.content_ar;
+
+    const buttonText =
+      locale === 'ar'
+        ? section.button_text_ar || section.button_text
+        : section.button_text || section.button_text_ar;
+
+    const buttonUrl = httpsUrl(section.button_url);
+
+    const bannerContent = (
+      <View
+        style={{
+          padding: 22,
+          gap: 12,
+          backgroundColor: 'rgba(24, 18, 15, 0.48)',
+        }}
+      >
+        {!!title && (
+          <Text
+            style={{
+              color: '#FFFFFF',
+              fontSize: 25,
+              lineHeight: 33,
+              fontWeight: '800',
+              textAlign: locale === 'ar' ? 'right' : 'left',
+              writingDirection: locale === 'ar' ? 'rtl' : 'ltr',
+            }}
+          >
+            {title}
+          </Text>
+        )}
+
+        {!!content && (
+          <Text
+            style={{
+              color: '#FFFFFF',
+              fontSize: 15,
+              lineHeight: 24,
+              textAlign: locale === 'ar' ? 'right' : 'left',
+              writingDirection: locale === 'ar' ? 'rtl' : 'ltr',
+            }}
+          >
+            {content}
+          </Text>
+        )}
+
+        {!!buttonText && !!buttonUrl && (
+          <Button
+            label={buttonText}
+            onPress={() => void WebBrowser.openBrowserAsync(buttonUrl)}
+          />
+        )}
+      </View>
+    );
+
+    const bannerFrame = {
+      minHeight: 225,
+      justifyContent: 'flex-end' as const,
+      overflow: 'hidden' as const,
+      backgroundColor: '#FF5517',
+    };
+
+    return (
+      <View
+        style={{
+          borderRadius: 22,
+          overflow: 'hidden',
+          backgroundColor: '#FF5517',
+        }}
+      >
+        {imageUrl ? (
+          <ImageBackground
+            source={{ uri: imageUrl }}
+            resizeMode="cover"
+            style={bannerFrame}
+            imageStyle={{ borderRadius: 22 }}
+          >
+            {bannerContent}
+          </ImageBackground>
+        ) : (
+          <View style={bannerFrame}>
+            {bannerContent}
+          </View>
+        )}
+      </View>
+    );
+  }
+
   if (section.type === 'editorial') {
     const content =
       locale === 'ar'
@@ -120,7 +220,8 @@ function HomeSection({ section }: { section: MobileHomeSection }) {
 
           if (
             section.type === 'products_latest' ||
-            section.type === 'products_featured'
+            section.type === 'products_featured' ||
+            section.type === 'products_selected'
           ) {
             const product = item as Product;
 
