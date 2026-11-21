@@ -29,10 +29,12 @@ export function Catalog({
   nav,
   shops = false,
   shopSlug,
+  homeContent,
 }: {
   nav: Nav;
   shops?: boolean;
   shopSlug?: string;
+  homeContent?: React.ReactNode;
 }) {
   const { locale } = useApp();
   const t = useText();
@@ -55,6 +57,7 @@ export function Catalog({
       ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
       ListHeaderComponent={
         <View style={{ gap: 16, marginBottom: 16 }}>
+          {homeContent}
           {!shopSlug && (
             <View style={styles.hero}>
               <Txt>

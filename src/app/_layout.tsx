@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -21,7 +21,7 @@ export default function RootLayout() {
   );
 }
 function Shell() {
-  const { api, session, locale, setLocale, ready, checked } = useApp();
+  const { api, session, locale, setLocale, ready, checked, mobileConfig } = useApp();
   const token = session?.token;
   const t = useText();
   const [pendingLink, setPendingLink] = useState<number | null>(null);
@@ -77,12 +77,24 @@ function Shell() {
             borderColor: colors.line,
           }}
         >
-          <Text
-            accessibilityRole="header"
-            style={{ fontSize: 25, fontWeight: '900', color: colors.green }}
-          >
-            مروج<Text style={{ color: colors.muted, fontSize: 14 }}> .com</Text>
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+            {mobileConfig?.brand.logo_url ? (
+              <Image
+                accessibilityLabel={locale === 'ar' ? 'شعار مروج' : 'Murwaj logo'}
+                source={{ uri: mobileConfig.brand.logo_url }}
+                resizeMode="contain"
+                style={{ width: 38, height: 38 }}
+              />
+            ) : null}
+            <Text
+              accessibilityRole="header"
+              style={{ fontSize: 23, fontWeight: '900', color: colors.ink }}
+            >
+              {locale === 'ar'
+                ? mobileConfig?.brand.name_ar ?? 'مُروَّج.كم'
+                : mobileConfig?.brand.name ?? 'murwaj'}
+            </Text>
+          </View>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={locale === 'ar' ? 'Switch to English' : 'التبديل للعربية'}
@@ -94,6 +106,48 @@ function Shell() {
             </Text>
           </Pressable>
         </View>
+        {mobileConfig?.promo?.enabled &&
+        (mobileConfig.promo.text[locale] || mobileConfig.promo.text.en || mobileConfig.promo.text.ar) ? (
+          <Pressable
+            accessibilityRole={mobileConfig.promo.url ? 'link' : 'text'}
+            accessibilityLabel={
+              mobileConfig.promo.text[locale] ||
+              mobileConfig.promo.text.en ||
+              mobileConfig.promo.text.ar ||
+              ''
+            }
+            disabled={!mobileConfig.promo.url}
+            onPress={() => {
+              const url = mobileConfig.promo?.url;
+              if (url && /^https:\/\//i.test(url)) {
+                void Linking.openURL(url).catch(() => {});
+              }
+            }}
+            style={{
+              marginHorizontal: 12,
+              marginTop: 9,
+              marginBottom: 5,
+              paddingHorizontal: 14,
+              paddingVertical: 10,
+              borderRadius: 12,
+              backgroundColor: mobileConfig.promo.background_color,
+            }}
+          >
+            <Text
+              style={{
+                color: mobileConfig.promo.text_color,
+                textAlign: 'center',
+                writingDirection: locale === 'ar' ? 'rtl' : 'ltr',
+                fontSize: 13,
+                fontWeight: '700',
+              }}
+            >
+              {mobileConfig.promo.text[locale] ||
+                mobileConfig.promo.text.en ||
+                mobileConfig.promo.text.ar}
+            </Text>
+          </Pressable>
+        ) : null}
         {config.problem ? (
           <View style={styles.page}>
             <Txt title>{t('إعداد الاتصال', 'Connection setup')}</Txt>

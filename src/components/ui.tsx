@@ -12,12 +12,12 @@ import type { TextInputProps } from 'react-native';
 import { useApp } from '../session-context';
 import { ApiError } from '../core/api';
 export const colors = {
-  ink: '#15382F',
-  muted: '#69796D',
-  green: '#17684E',
-  lime: '#D8F27B',
-  paper: '#F6F7F2',
-  line: '#DEE5D9',
+  ink: '#241F1D',
+  muted: '#817872',
+  green: '#FF5517',
+  lime: '#FFF0E9',
+  paper: '#FAF7F4',
+  line: '#EDE4DE',
   red: '#A43737',
 };
 export const styles = StyleSheet.create({
