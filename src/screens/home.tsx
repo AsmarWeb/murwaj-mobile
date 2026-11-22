@@ -10,7 +10,7 @@ import {
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 
-import { httpsUrl } from '../core/api';
+import { resolveMediaUrl, httpsUrl } from '../core/api';
 import { useApp } from '../session-context';
 import { usePublicQuery } from '../use-public-query';
 import {
@@ -101,7 +101,7 @@ export function HomeScreen() {
               writingDirection: locale === 'ar' ? 'rtl' : 'ltr',
             }}
           >
-            {t('ابحث عن المنتجات والعلامات والمتاجر...', 'Search products, brands and stores...')}
+            {t('ابحث عن المنتجات والمتاجر...', 'Search products and stores...')}
           </Text>
         </Pressable>
         <Pressable
@@ -385,12 +385,10 @@ function HomeProductCard({
   onPress: () => void;
   wide?: boolean;
 }) {
-  const { locale } = useApp();
+  const { api, locale } = useApp();
   const t = useText();
-  const [imageFailed, setImageFailed] = useState(false);
-  const imageUri = typeof product.image_url === 'string' && /^https?:\/\//i.test(product.image_url)
-    ? product.image_url
-    : null;
+  const [failedImageUri, setFailedImageUri] = useState<string | null>(null);
+  const imageUri = resolveMediaUrl(product.image_url, api.origin);
   const productTitle = locale === 'ar' ? product.title_ar || product.title : product.title;
 
   return (
@@ -419,12 +417,12 @@ function HomeProductCard({
           justifyContent: 'center',
         }}
       >
-        {imageUri && !imageFailed ? (
+        {imageUri && failedImageUri !== imageUri ? (
           <Image
             source={{ uri: imageUri }}
             style={{ width: '100%', height: '100%' }}
             resizeMode="cover"
-            onError={() => setImageFailed(true)}
+            onError={() => setFailedImageUri(imageUri)}
           />
         ) : (
           <View style={{ alignItems: 'center', justifyContent: 'center', gap: 6 }}>
@@ -483,7 +481,7 @@ function HomeProductCard({
 }
 
 function HomeSection({ section }: { section: MobileHomeSection }) {
-  const { locale } = useApp();
+  const { api, locale } = useApp();
   const t = useText();
   const title = locale === 'ar'
     ? section.title_ar || section.title
@@ -491,10 +489,7 @@ function HomeSection({ section }: { section: MobileHomeSection }) {
   const items = section.items ?? [];
 
   if (section.type === 'banner') {
-    const imageUrl =
-      typeof section.image === 'string' && /^https?:\/\//i.test(section.image.trim())
-        ? section.image.trim()
-        : null;
+    const imageUrl = resolveMediaUrl(section.image, api.origin);
     const content = locale === 'ar'
       ? section.content_ar || section.content
       : section.content || section.content_ar;
@@ -594,7 +589,7 @@ function HomeSection({ section }: { section: MobileHomeSection }) {
 
             if (section.type === 'categories') {
               const category = item as MobileHomeCategory;
-              const uri = category.image && /^https?:\/\//i.test(category.image) ? category.image : null;
+              const uri = resolveMediaUrl(category.image, api.origin);
               return (
                 <Pressable
                   key={key}
@@ -618,7 +613,7 @@ function HomeSection({ section }: { section: MobileHomeSection }) {
             }
 
             const catalogSection = item as MobileHomeCatalogSection;
-            const uri = catalogSection.image && /^https?:\/\//i.test(catalogSection.image) ? catalogSection.image : null;
+            const uri = resolveMediaUrl(catalogSection.image, api.origin);
             return (
               <Pressable
                 key={key}

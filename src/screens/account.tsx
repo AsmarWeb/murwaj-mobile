@@ -56,18 +56,6 @@ export function AccountScreen() {
       <ErrorText error={error} />
       {notice && <Txt>{notice}</Txt>}
       {issue && <Txt muted>{issue}</Txt>}
-      {session && (
-        <View style={{ backgroundColor: '#FFF0E9', borderRadius: 25, borderWidth: 1, borderColor: '#FFE0D2', padding: 20, gap: 9 }}>
-          <Txt muted>{t('ملفك الشخصي', 'Your profile')}</Txt>
-          <Txt title>{session.user.name}</Txt>
-          <Txt>{session.user.email}</Txt>
-          <Txt muted>{session.user.email_verified ? t('✓ البريد الإلكتروني موثّق', '✓ Email verified') : t('البريد الإلكتروني بانتظار التوثيق', 'Email verification pending')}</Txt>
-          <View style={{ flexDirection: 'row', gap: 9, marginTop: 5 }}>
-            <View style={{ flex: 1 }}><Button secondary label={t('طلباتي', 'My orders')} onPress={() => router.navigate('/orders')} /></View>
-            <View style={{ flex: 1 }}><Button secondary label={t('السلة', 'Basket')} onPress={() => router.navigate('/cart')} /></View>
-          </View>
-        </View>
-      )}
       {!native && (
         <Txt>
           {t(
@@ -78,26 +66,34 @@ export function AccountScreen() {
       )}
       {session ? (
         <>
-          <View style={styles.card}>
+          <View style={[styles.card, { backgroundColor: '#FFF0E9', borderColor: '#FFE0D2' }]}> 
+            <Txt muted>{t('الملف الشخصي', 'Your profile')}</Txt>
             <Txt title>{session.user.name}</Txt>
             <Txt>{session.user.email}</Txt>
             <Txt muted>
               {session.user.email_verified
-                ? t('البريد موثّق', 'Email verified')
-                : t('يلزم توثيق البريد قبل الدفع', 'Verify your email before checkout')}
+                ? t('✓ البريد الإلكتروني موثّق', '✓ Email verified')
+                : t('البريد الإلكتروني بانتظار التوثيق', 'Email verification pending')}
             </Txt>
-            <Button
-              disabled={busy}
-              label={t('تحديث حالة الحساب', 'Refresh account')}
-              onPress={() => void run(recheck)}
-              secondary
-            />
+            <View style={{ flexDirection: 'row', gap: 9 }}>
+              <View style={{ flex: 1 }}>
+                <Button secondary label={t('طلباتي', 'My orders')} onPress={() => router.navigate('/orders')} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button secondary label={t('السلة', 'Basket')} onPress={() => router.navigate('/cart')} />
+              </View>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 9 }}>
+              <View style={{ flex: 1 }}>
+                <Button secondary label={t('المتاجر', 'Stores')} onPress={() => router.navigate('/stores')} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button secondary disabled={busy} label={t('تحديث الحساب', 'Refresh account')} onPress={() => void run(recheck)} />
+              </View>
+            </View>
             {!checked && (
               <Txt muted>
-                {t(
-                  'تحقق من الاتصال قبل عمليات الحساب.',
-                  'Verify the session before account actions.',
-                )}
+                {t('تحقق من الاتصال قبل عمليات الحساب.', 'Verify the session before account actions.')}
               </Txt>
             )}
           </View>
@@ -168,6 +164,17 @@ export function AccountScreen() {
               )}
             </View>
           ))}
+          <View style={styles.card}>
+            <Txt title>{t('المساعدة والسياسات', 'Help and policies')}</Txt>
+            <View style={{ flexDirection: 'row', gap: 9 }}>
+              <View style={{ flex: 1 }}>
+                <Button secondary label={t('الشروط', 'Terms')} onPress={() => void run(() => website('/terms-of-service'))} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button secondary label={t('الخصوصية', 'Privacy')} onPress={() => void run(() => website('/privacy-policy'))} />
+              </View>
+            </View>
+          </View>
           <Button
             disabled={busy}
             label={t('تسجيل الخروج', 'Sign out')}
