@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Image, KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Linking from 'expo-linking';
 import { AppProvider, useApp } from '../session-context';
@@ -23,6 +23,8 @@ export default function RootLayout() {
 function Shell() {
   const { api, session, locale, setLocale, ready, checked, mobileConfig } = useApp();
   const token = session?.token;
+  const segments = useSegments();
+  const showGlobalChrome = segments[0] !== 'product';
   const t = useText();
   const [pendingLink, setPendingLink] = useState<number | null>(null);
   const busy = useRef(false);
@@ -66,6 +68,7 @@ function Shell() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
       >
+        {showGlobalChrome && (
         <View
           style={{
             paddingHorizontal: 20,
@@ -106,6 +109,9 @@ function Shell() {
             </Text>
           </Pressable>
         </View>
+        )}
+                {showGlobalChrome && (
+          <>
         {mobileConfig?.promo?.enabled &&
         (mobileConfig.promo.text[locale] || mobileConfig.promo.text.en || mobileConfig.promo.text.ar) ? (
           <Pressable
@@ -148,7 +154,9 @@ function Shell() {
             </Text>
           </Pressable>
         ) : null}
-        {config.problem ? (
+          </>
+        )}
+                {config.problem ? (
           <View style={styles.page}>
             <Txt title>{t('إعداد الاتصال', 'Connection setup')}</Txt>
             <Txt>{config.problem}</Txt>
@@ -165,7 +173,7 @@ function Shell() {
             }}
           >
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="product/[slug]" />
+            <Stack.Screen name="product/[slug]" options={{ headerShown: false }} />
             <Stack.Screen name="store/[slug]" />
             <Stack.Screen name="store-products/[slug]" />
             <Stack.Screen name="order/[id]" />

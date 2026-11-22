@@ -40,6 +40,7 @@ export type Product = {
   quantity: number;
   image_url?: string | null;
   image_urls?: string[];
+  rating?: number | null;
   shop?: Shop | null;
   features?: string[];
 };

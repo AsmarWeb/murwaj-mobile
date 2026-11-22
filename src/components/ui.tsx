@@ -12,24 +12,24 @@ import type { TextInputProps } from 'react-native';
 import { useApp } from '../session-context';
 import { ApiError } from '../core/api';
 export const colors = {
-  ink: '#241B16',
-  muted: '#82766F',
+  ink: '#211A16',
+  muted: '#81756E',
   green: '#FF5517',
   primary: '#FF5517',
   primarySoft: '#FFF0E9',
   lime: '#FFF0E9',
-  paper: '#FBF8F5',
+  paper: '#FAF7F3',
   white: '#FFFFFF',
-  line: '#EEE5DF',
+  line: '#EFE7E1',
   red: '#A43737',
 };
 
 export const styles = StyleSheet.create({
   page: {
-    paddingHorizontal: 18,
-    paddingTop: 16,
-    gap: 18,
-    paddingBottom: 48,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    gap: 21,
+    paddingBottom: 52,
   },
   row: {
     flexDirection: 'row',
@@ -38,17 +38,17 @@ export const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   card: {
-    padding: 18,
+    padding: 17,
     backgroundColor: colors.white,
-    borderRadius: 22,
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: colors.line,
-    gap: 12,
+    gap: 13,
     shadowColor: colors.ink,
-    shadowOpacity: 0.035,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 1,
+    shadowOpacity: 0.045,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
   },
   hero: {
     padding: 25,
@@ -57,8 +57,8 @@ export const styles = StyleSheet.create({
     gap: 13,
   },
   heading: {
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: 29,
+    fontWeight: '900',
     color: colors.ink,
   },
   title: {
@@ -95,9 +95,9 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.paper,
   },
   button: {
-    paddingVertical: 14,
-    paddingHorizontal: 19,
-    borderRadius: 15,
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderRadius: 17,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
