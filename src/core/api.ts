@@ -33,6 +33,24 @@ export function normalizeOrigin(raw: string, allowLocalHttp = false): string {
     throw new Error('HTTPS is required. Local HTTP needs the explicit development flag.');
   return u.origin;
 }
+
+/** Resolve localhost media URLs against the API host reachable by this device. */
+export function resolveMediaUrl(raw: string | null | undefined, apiOrigin: string): string | null {
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  try {
+    const media = new URL(raw.trim());
+    if (media.protocol !== 'http:' && media.protocol !== 'https:') return null;
+    if (['localhost', '127.0.0.1', '0.0.0.0', '::1'].includes(media.hostname.toLowerCase())) {
+      const api = new URL(apiOrigin);
+      media.protocol = api.protocol;
+      media.hostname = api.hostname;
+      media.port = api.port;
+    }
+    return media.href;
+  } catch {
+    return null;
+  }
+}
 export type ApiOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import type { TextInputProps } from 'react-native';
 import { useApp } from '../session-context';
-import { ApiError } from '../core/api';
+import { ApiError, resolveMediaUrl } from '../core/api';
 export const colors = {
   ink: '#211A16',
   muted: '#81756E',
@@ -212,14 +212,18 @@ export function Photo({
   uri?: string | null;
   height?: number;
 }) {
+  const { api } = useApp();
+  const [failedImageUri, setFailedImageUri] = useState<string | null>(null);
+  const imageUri = resolveMediaUrl(uri, api.origin);
   const imageStyle = height ? [styles.image, { height }] : styles.image;
 
-  return uri && /^https?:\/\//.test(uri) ? (
+  return imageUri && failedImageUri !== imageUri ? (
     <Image
       accessibilityIgnoresInvertColors
-      source={{ uri }}
+      source={{ uri: imageUri }}
       style={imageStyle}
       resizeMode="cover"
+      onError={() => setFailedImageUri(imageUri)}
     />
   ) : (
     <View
@@ -228,7 +232,7 @@ export function Photo({
         { alignItems: 'center', justifyContent: 'center' },
       ]}
     >
-      <Text style={{ fontSize: 38, color: colors.green }}>م</Text>
+      <Text style={{ fontSize: 38, color: colors.green, fontWeight: '900' }}>م</Text>
     </View>
   );
 }

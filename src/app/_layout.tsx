@@ -8,7 +8,7 @@ import { AppProvider, useApp } from '../session-context';
 import { CheckoutProvider } from '../checkout-context';
 import { Busy, colors, styles, Txt, useText } from '../components/ui';
 import { config } from '../config';
-import { checkoutReturn } from '../core/api';
+import { checkoutReturn, resolveMediaUrl } from '../core/api';
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
@@ -27,6 +27,7 @@ function Shell() {
   const showGlobalChrome = segments[0] !== 'product';
   const t = useText();
   const [pendingLink, setPendingLink] = useState<number | null>(null);
+  const brandLogoUrl = resolveMediaUrl(mobileConfig?.brand.logo_url, api.origin);
   const busy = useRef(false);
   useEffect(() => {
     const receive = (url: string) => {
@@ -81,10 +82,10 @@ function Shell() {
           }}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-            {mobileConfig?.brand.logo_url ? (
+            {brandLogoUrl ? (
               <Image
                 accessibilityLabel={locale === 'ar' ? 'شعار مروج' : 'Murwaj logo'}
-                source={{ uri: mobileConfig.brand.logo_url }}
+                source={{ uri: brandLogoUrl }}
                 resizeMode="contain"
                 style={{ width: 38, height: 38 }}
               />
