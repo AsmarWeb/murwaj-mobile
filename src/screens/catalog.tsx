@@ -1,4 +1,5 @@
 import { usePublicQuery } from '../use-public-query';
+import { resolveMediaUrl } from '../core/api';
 import React, { useRef, useState } from 'react';
 import { FlatList, Image, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { router } from 'expo-router';
@@ -452,12 +453,15 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
   const [uncertain, setUncertain] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
+  const [failedImageUri, setFailedImageUri] = useState<string | null>(null);
   const addLock = useRef(false);
 
   const gallery = product
     ? [...new Set([...(product.image_urls ?? []), product.image_url ?? ''].filter((uri) => /^https?:\/\//i.test(uri)))]
+        .map((uri) => resolveMediaUrl(uri, api.origin))
+        .filter((uri): uri is string => Boolean(uri))
     : [];
-  const selectedImage = gallery[activeImage] || product?.image_url || null;
+  const selectedImage = gallery[activeImage] ?? resolveMediaUrl(product?.image_url, api.origin);
 
   async function add() {
     if (!session) {
@@ -503,11 +507,17 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 22 }}>
         <View style={{ height: 415, backgroundColor: '#F5D2C2' }}>
-          {selectedImage ? (
-            <Image source={{ uri: selectedImage }} resizeMode="cover" style={{ width: '100%', height: '100%' }} />
+          {selectedImage && failedImageUri !== selectedImage ? (
+            <Image
+              source={{ uri: selectedImage }}
+              resizeMode="contain"
+              style={{ width: '100%', height: '100%' }}
+              onError={() => setFailedImageUri(selectedImage)}
+            />
           ) : (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAF3EE' }}>
               <Text style={{ color: colors.primary, fontSize: 58, fontWeight: '900' }}>م</Text>
+              <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '800', marginTop: 7 }}>murwaj.com</Text>
             </View>
           )}
           <View style={{ position: 'absolute', top: 14, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -522,7 +532,13 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
             <View style={{ position: 'absolute', right: 13, top: 76, gap: 8 }}>
               {gallery.slice(0, 4).map((uri, index) => (
                 <Pressable key={`${uri}-${index}`} accessibilityRole="button" accessibilityLabel={t(`الصورة ${index + 1}`, `Image ${index + 1}`)} onPress={() => setActiveImage(index)} style={{ width: 52, height: 61, borderRadius: 11, borderWidth: activeImage === index ? 2 : 1, borderColor: activeImage === index ? colors.primary : '#FFFFFF', overflow: 'hidden', backgroundColor: '#FFFFFF' }}>
-                  <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  {failedImageUri === uri ? (
+                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAF3EE' }}>
+                      <Text style={{ color: colors.primary, fontSize: 22, fontWeight: '900' }}>م</Text>
+                    </View>
+                  ) : (
+                    <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" onError={() => setFailedImageUri(uri)} />
+                  )}
                 </Pressable>
               ))}
               {gallery.length > 4 && (
