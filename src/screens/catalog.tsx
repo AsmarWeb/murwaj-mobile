@@ -522,10 +522,10 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
           )}
           <View style={{ position: 'absolute', top: 14, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
             <Pressable accessibilityRole="button" accessibilityLabel={t('رجوع', 'Go back')} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.94)', alignItems: 'center', justifyContent: 'center' }}>
-              <SymbolView name="chevron.left" tintColor={colors.ink} size={19} />
+              <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }} tintColor={colors.ink} size={19} />
             </Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel={t('مشاركة المنتج', 'Share product')} onPress={() => void shareProduct()} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.94)', alignItems: 'center', justifyContent: 'center' }}>
-              <SymbolView name="square.and.arrow.up" tintColor={colors.ink} size={19} />
+              <SymbolView name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }} tintColor={colors.ink} size={19} />
             </Pressable>
           </View>
           {gallery.length > 1 && (
@@ -585,13 +585,13 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
                   <Txt title>{t('الكمية', 'Quantity')}</Txt>
                   <Txt muted>{t(`المتوفر: ${product.quantity}`, `Available: ${product.quantity}`)}</Txt>
                 </View>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15, borderWidth: 1, borderColor: colors.line, borderRadius: 15, padding: 5 }}>
-                  <Pressable accessibilityRole="button" accessibilityLabel={t('تقليل الكمية', 'Decrease quantity')} disabled={quantity <= 1} onPress={() => setQuantity((value) => Math.max(1, value - 1))} style={{ width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper, opacity: quantity <= 1 ? 0.4 : 1 }}>
-                    <SymbolView name="minus" tintColor={colors.ink} size={15} />
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11, borderWidth: 1, borderColor: colors.line, borderRadius: 17, padding: 6, backgroundColor: colors.white }}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={t('تقليل الكمية', 'Decrease quantity')} accessibilityState={{ disabled: quantity <= 1 }} disabled={quantity <= 1} onPress={() => setQuantity((value) => Math.max(1, value - 1))} style={{ width: 44, height: 44, borderRadius: 13, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper, opacity: quantity <= 1 ? 0.45 : 1 }}>
+                    <Text style={{ color: colors.ink, fontSize: 28, lineHeight: 32, fontWeight: '700' }}>−</Text>
                   </Pressable>
-                  <Text style={{ minWidth: 20, textAlign: 'center', color: colors.ink, fontSize: 16, fontWeight: '800' }}>{quantity}</Text>
-                  <Pressable accessibilityRole="button" accessibilityLabel={t('زيادة الكمية', 'Increase quantity')} disabled={quantity >= product.quantity} onPress={() => setQuantity((value) => Math.min(product.quantity, value + 1))} style={{ width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper, opacity: quantity >= product.quantity ? 0.4 : 1 }}>
-                    <SymbolView name="plus" tintColor={colors.ink} size={15} />
+                  <Text accessibilityLabel={t(`الكمية ${quantity}`, `Quantity ${quantity}`)} style={{ minWidth: 25, textAlign: 'center', color: colors.ink, fontSize: 18, fontWeight: '900' }}>{quantity}</Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel={t('زيادة الكمية', 'Increase quantity')} accessibilityState={{ disabled: quantity >= product.quantity }} disabled={quantity >= product.quantity} onPress={() => setQuantity((value) => Math.min(product.quantity, value + 1))} style={{ width: 44, height: 44, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary, opacity: quantity >= product.quantity ? 0.45 : 1 }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 27, lineHeight: 32, fontWeight: '700' }}>+</Text>
                   </Pressable>
                 </View>
               </View>
@@ -601,7 +601,7 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
       </ScrollView>
 
       {product && (
-        <View style={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 12, backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: colors.line }}>
+        <View style={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 16, minHeight: 82, backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: colors.line, shadowColor: colors.ink, shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: -4 }, elevation: 12 }}>
           <Button
             label={adding ? t('جارٍ الإضافة...', 'Adding...') : added ? t('عرض السلة', 'View basket') : t('أضف إلى السلة', 'Add to basket')}
             disabled={adding || uncertain || product.quantity < 1 || product.currency !== 'AED' || (!!session && !checked) || !product}
