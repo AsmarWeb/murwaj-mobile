@@ -92,7 +92,7 @@ function Shell() {
             >
               {locale === 'ar'
                 ? mobileConfig?.brand.name_ar ?? 'مُروَّج.كم'
-                : mobileConfig?.brand.name ?? 'murwaj'}
+                : 'murwaj.com'}
             </Text>
           </View>
           <Pressable
@@ -171,6 +171,9 @@ function Shell() {
             <Stack.Screen name="order/[id]" />
             <Stack.Screen name="checkout/index" />
             <Stack.Screen name="checkout/result" />
+            <Stack.Protected guard={!session} redirectTo="/account">
+              <Stack.Screen name="login" options={{ headerShown: false }} />
+            </Stack.Protected>
             <Stack.Screen name="+not-found" />
           </Stack>
         )}
