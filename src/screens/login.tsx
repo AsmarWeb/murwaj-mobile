@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
@@ -70,7 +70,6 @@ function parseSocialCallback(raw: string): SocialCallback | null {
 export function LoginScreen() {
   const {
     api,
-    locale,
     authenticate,
     exchangeSocialTicket,
     verifySocialChallenge,
@@ -94,10 +93,6 @@ export function LoginScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
   const [notice, setNotice] = useState('');
-
-  useEffect(() => {
-    if (params.mode === 'register') setRegister(true);
-  }, [params.mode]);
 
   function resetTwoFactor() {
     setTwoFactorRequired(false);
