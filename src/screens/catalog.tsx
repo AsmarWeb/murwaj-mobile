@@ -5,6 +5,7 @@ import { useApp } from '../session-context';
 import {
   Button,
   Busy,
+  colors,
   ErrorText,
   Field,
   Money,
@@ -41,99 +42,253 @@ export function Catalog({
   const [draft, setDraft] = useState('');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
-  const path = shopSlug ? `/shops/${segment(shopSlug)}/listings` : shops ? '/shops' : '/listings';
+
+  const columns = shops ? 1 : 2;
+  const path = shopSlug
+    ? `/shops/${segment(shopSlug)}/listings`
+    : shops
+      ? '/shops'
+      : '/listings';
+
   const {
     data: result,
     error,
     busy,
     retry,
-  } = usePublicQuery<Page<Product | Shop>>(`${path}?per_page=12&page=${page}&q=${segment(q)}`);
+  } = usePublicQuery<Page<Product | Shop>>(
+    `${path}?per_page=12&page=${page}&q=${segment(q)}`,
+  );
+
+  function search() {
+    setPage(1);
+    setQ(draft.trim());
+  }
+
+  function clearSearch() {
+    setDraft('');
+    setQ('');
+    setPage(1);
+  }
+
   return (
     <FlatList
+      key={columns}
       data={result?.data ?? []}
+      numColumns={columns}
+      columnWrapperStyle={
+        columns === 2 ? { gap: 12, alignItems: 'stretch' } : undefined
+      }
       keyExtractor={(item) => String(item.id)}
       contentContainerStyle={styles.page}
       keyboardShouldPersistTaps="handled"
-      ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
+      showsVerticalScrollIndicator={false}
+      ItemSeparatorComponent={() => <View style={{ height: 13 }} />}
       ListHeaderComponent={
-        <View style={{ gap: 16, marginBottom: 16 }}>
-          {homeContent}
-          {!shopSlug && (
-            <View style={styles.hero}>
-              <Txt>
-                <TextOnDark>{t('مروج.كوم', 'MURWAJ.COM')}</TextOnDark>
-              </Txt>
+        <View style={{ gap: 19, marginBottom: 13 }}>
+          {!shopSlug && !shops && (
+            <View
+              style={[
+                styles.hero,
+                {
+                  backgroundColor: colors.ink,
+                  borderRadius: 27,
+                  padding: 23,
+                },
+              ]}
+            >
+              <View
+                style={{
+                  alignSelf: locale === 'ar' ? 'flex-end' : 'flex-start',
+                  backgroundColor: 'rgba(255,85,23,0.18)',
+                  paddingHorizontal: 12,
+                  paddingVertical: 7,
+                  borderRadius: 30,
+                }}
+              >
+                <Text
+                  style={{
+                    color: '#FF9B76',
+                    fontWeight: '800',
+                    fontSize: 12,
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  murwaj.com
+                </Text>
+              </View>
+
               <TextOnDark large>
-                {t('اكتشف الإبداع.\nتسوّق بذكاء.', 'Get Found.\nSell Smarter.')}
+                {t(
+                  'اكتشف أشياء مميزة. تسوّق بسهولة.',
+                  'Discover something special. Shop with ease.',
+                )}
               </TextOnDark>
+
               <TextOnDark>
-                {t('منتجات ومتاجر تستحق أن تكتشفها.', 'Independent stores. Fresh discoveries.')}
+                {t(
+                  'متاجر مستقلة ومنتجات مختارة في مكان واحد.',
+                  'Independent stores and products, all in one place.',
+                )}
               </TextOnDark>
+
+              <View style={[styles.row, { marginTop: 5 }]}>
+                <Button
+                  label={t('افتح السلة', 'Open basket')}
+                  secondary
+                  onPress={nav.cart}
+                />
+                <Button
+                  label={t('حسابي', 'My account')}
+                  secondary
+                  onPress={nav.account}
+                />
+              </View>
             </View>
           )}
-          <Txt title>
-            {shopSlug
-              ? t('منتجات المتجر', 'Store products')
-              : shops
-                ? t('اكتشف المتاجر', 'Discover stores')
-                : t('اكتشف المنتجات', 'Discover products')}
-          </Txt>
-          <Field
-            label={t('بحث', 'Search')}
-            value={draft}
-            onChangeText={setDraft}
-            maxLength={100}
-            returnKeyType="search"
-            onSubmitEditing={() => {
-              setPage(1);
-              setQ(draft.trim());
+
+          <View style={{ gap: 11 }}>
+            <Txt title>
+              {shopSlug
+                ? t('منتجات المتجر', 'Store products')
+                : shops
+                  ? t('اكتشف المتاجر', 'Discover stores')
+                  : t('اكتشف المنتجات', 'Discover products')}
+            </Txt>
+
+            <Field
+              label={
+                shopSlug || shops
+                  ? t('ابحث عن متجر', 'Search stores')
+                  : t('ابحث عن منتج', 'Search products')
+              }
+              placeholder={
+                shopSlug || shops
+                  ? t('اسم المتجر...', 'Store name...')
+                  : t('ما الذي تبحث عنه؟', 'What are you looking for?')
+              }
+              value={draft}
+              onChangeText={setDraft}
+              maxLength={100}
+              returnKeyType="search"
+              onSubmitEditing={search}
+              autoCorrect={false}
+            />
+
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label={t('بحث', 'Search')}
+                  onPress={search}
+                />
+              </View>
+              {!!q && (
+                <Button
+                  label={t('مسح', 'Clear')}
+                  onPress={clearSearch}
+                  secondary
+                />
+              )}
+            </View>
+          </View>
+
+          {!shopSlug && !shops && homeContent}
+
+          <View
+            style={{
+              flexDirection: locale === 'ar' ? 'row-reverse' : 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
             }}
-          />
-          <Button
-            label={t('بحث', 'Search')}
-            onPress={() => {
-              setPage(1);
-              setQ(draft.trim());
-              retry();
-            }}
-            secondary
-          />
+          >
+            <Txt muted>
+              {result
+                ? t(
+                    `${result.meta.total} نتيجة`,
+                    `${result.meta.total} results`,
+                  )
+                : t('منتجات ومتاجر مختارة', 'Products and stores')}
+            </Txt>
+
+            {busy && <Busy />}
+          </View>
+
           <ErrorText error={error} />
-          {busy && <Busy />}
         </View>
       }
       renderItem={({ item }) =>
         shops ? (
-          <View style={styles.card}>
+          <View style={[styles.card, { gap: 11 }]}>
+            <Photo
+              uri={(item as Shop).logo_url || (item as Shop).banner_url}
+              height={145}
+            />
+
             <Txt title>
               {locale === 'ar'
                 ? (item as Shop).name_ar || (item as Shop).name
                 : (item as Shop).name}
             </Txt>
+
             <Txt muted>
               {(item as Shop).verified
                 ? t('متجر موثّق', 'Verified store')
                 : t('متجر مستقل', 'Independent store')}
             </Txt>
+
+            {!!(item as Shop).description && (
+              <Txt>
+                {(item as Shop).description}
+              </Txt>
+            )}
+
             <Button
-              label={t('عرض المتجر', 'Visit store')}
+              label={t('زيارة المتجر', 'Visit store')}
               onPress={() => nav.shop(item.slug)}
               secondary
             />
           </View>
         ) : (
-          <ProductCard product={item as Product} onPress={() => nav.product(item.slug)} />
+          <ProductCard
+            product={item as Product}
+            onPress={() => nav.product(item.slug)}
+            compact
+          />
         )
       }
       ListEmptyComponent={
         !busy && !error ? (
-          <Txt muted>{t('لا توجد نتائج حاليًا.', 'No results yet.')}</Txt>
+          <View style={styles.card}>
+            <Txt title>
+              {t('لا توجد نتائج حاليًا', 'No results found')}
+            </Txt>
+            <Txt muted>
+              {t(
+                'جرّب كلمة بحث أخرى أو امسح البحث لعرض المنتجات المتاحة.',
+                'Try another search term or clear the search to see available items.',
+              )}
+            </Txt>
+            {!!q && (
+              <Button
+                label={t('عرض جميع النتائج', 'Show all items')}
+                onPress={clearSearch}
+                secondary
+              />
+            )}
+          </View>
         ) : undefined
       }
       ListFooterComponent={
-        <View style={{ gap: 14, marginTop: 18 }}>
-          {!!error && <Button label={t('إعادة المحاولة', 'Retry')} onPress={() => retry()} />}
-          {result && (
+        <View style={{ gap: 13, marginTop: 17 }}>
+          {!!error && (
+            <Button
+              label={t('إعادة المحاولة', 'Try again')}
+              onPress={retry}
+              secondary
+            />
+          )}
+
+          {result && result.meta.last_page > 1 && (
             <>
               <Txt muted>
                 {t(
@@ -141,19 +296,24 @@ export function Catalog({
                   `Page ${page} of ${result.meta.last_page}`,
                 )}
               </Txt>
+
               <View style={styles.row}>
-                <Button
-                  label={t('السابق', 'Previous')}
-                  disabled={busy || page <= 1}
-                  onPress={() => setPage((x) => x - 1)}
-                  secondary
-                />
-                <Button
-                  label={t('التالي', 'Next')}
-                  disabled={busy || page >= result.meta.last_page}
-                  onPress={() => setPage((x) => x + 1)}
-                  secondary
-                />
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label={t('السابق', 'Previous')}
+                    disabled={busy || page <= 1}
+                    onPress={() => setPage((x) => x - 1)}
+                    secondary
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label={t('التالي', 'Next')}
+                    disabled={busy || page >= result.meta.last_page}
+                    onPress={() => setPage((x) => x + 1)}
+                    secondary
+                  />
+                </View>
               </View>
             </>
           )}
@@ -162,32 +322,72 @@ export function Catalog({
     />
   );
 }
-function TextOnDark({ children, large = false }: { children: React.ReactNode; large?: boolean }) {
+
+function TextOnDark({
+  children,
+  large = false,
+}: {
+  children: React.ReactNode;
+  large?: boolean;
+}) {
   const { locale } = useApp();
+
   return (
     <Text
       style={{
-        color: '#EFF4DF',
-        fontSize: large ? 32 : 14,
+        color: '#FFFFFF',
+        fontSize: large ? 29 : 14,
         fontWeight: large ? '800' : '500',
-        lineHeight: large ? 43 : 23,
+        lineHeight: large ? 40 : 23,
         textAlign: locale === 'ar' ? 'right' : 'left',
+        writingDirection: locale === 'ar' ? 'rtl' : 'ltr',
       }}
     >
       {children}
     </Text>
   );
 }
-export function ProductCard({ product: p, onPress }: { product: Product; onPress: () => void }) {
+
+export function ProductCard({
+  product: p,
+  onPress,
+  compact = false,
+}: {
+  product: Product;
+  onPress: () => void;
+  compact?: boolean;
+}) {
   const { locale } = useApp();
   const t = useText();
+
   return (
-    <View style={styles.card}>
-      <Photo uri={p.image_url} />
-      <Txt title>{locale === 'ar' ? p.title_ar || p.title : p.title}</Txt>
-      <Txt muted>{p.shop?.name}</Txt>
+    <View
+      style={[
+        styles.card,
+        compact && {
+          flex: 1,
+          minWidth: 0,
+          padding: 11,
+          gap: 8,
+          borderRadius: 18,
+        },
+      ]}
+    >
+      <Photo uri={p.image_url} height={compact ? 128 : 175} />
+
+      <Txt title>
+        {locale === 'ar' ? p.title_ar || p.title : p.title}
+      </Txt>
+
+      {!!p.shop?.name && <Txt muted>{p.shop.name}</Txt>}
+
       <Money value={p.price} currency={p.currency} />
-      <Button label={t('عرض المنتج', 'View product')} onPress={onPress} secondary />
+
+      <Button
+        label={t('عرض المنتج', 'View product')}
+        onPress={onPress}
+        secondary
+      />
     </View>
   );
 }

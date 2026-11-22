@@ -12,54 +12,120 @@ import type { TextInputProps } from 'react-native';
 import { useApp } from '../session-context';
 import { ApiError } from '../core/api';
 export const colors = {
-  ink: '#241F1D',
-  muted: '#817872',
+  ink: '#241B16',
+  muted: '#82766F',
   green: '#FF5517',
+  primary: '#FF5517',
+  primarySoft: '#FFF0E9',
   lime: '#FFF0E9',
-  paper: '#FAF7F4',
-  line: '#EDE4DE',
+  paper: '#FBF8F5',
+  white: '#FFFFFF',
+  line: '#EEE5DF',
   red: '#A43737',
 };
+
 export const styles = StyleSheet.create({
-  page: { padding: 20, gap: 16, paddingBottom: 36 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
+  page: {
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    gap: 18,
+    paddingBottom: 48,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
   card: {
-    padding: 17,
-    backgroundColor: '#FFF',
-    borderRadius: 20,
+    padding: 18,
+    backgroundColor: colors.white,
+    borderRadius: 22,
     borderWidth: 1,
     borderColor: colors.line,
-    gap: 10,
+    gap: 12,
+    shadowColor: colors.ink,
+    shadowOpacity: 0.035,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
   },
-  hero: { padding: 24, borderRadius: 24, backgroundColor: colors.ink, gap: 12 },
-  heading: { fontSize: 28, fontWeight: '800', color: colors.ink },
-  title: { fontSize: 20, fontWeight: '700', color: colors.ink },
-  text: { fontSize: 15, lineHeight: 23, color: colors.ink },
-  muted: { fontSize: 13, lineHeight: 21, color: colors.muted },
+  hero: {
+    padding: 25,
+    borderRadius: 26,
+    backgroundColor: colors.ink,
+    gap: 13,
+  },
+  heading: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.ink,
+  },
+  title: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: colors.ink,
+    lineHeight: 27,
+  },
+  text: {
+    fontSize: 15,
+    lineHeight: 24,
+    color: colors.ink,
+  },
+  muted: {
+    fontSize: 13,
+    lineHeight: 21,
+    color: colors.muted,
+  },
   input: {
     borderWidth: 1,
     borderColor: colors.line,
-    padding: 13,
-    borderRadius: 12,
-    backgroundColor: '#FFF',
+    paddingHorizontal: 15,
+    paddingVertical: 14,
+    borderRadius: 15,
+    backgroundColor: colors.white,
     fontSize: 16,
     color: colors.ink,
+    minHeight: 52,
   },
-  image: { width: '100%', height: 175, borderRadius: 14, backgroundColor: colors.paper },
+  image: {
+    width: '100%',
+    height: 190,
+    borderRadius: 18,
+    backgroundColor: colors.paper,
+  },
   button: {
-    paddingVertical: 13,
-    paddingHorizontal: 18,
-    borderRadius: 13,
-    backgroundColor: colors.green,
+    paddingVertical: 14,
+    paddingHorizontal: 19,
+    borderRadius: 15,
+    backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
+    minHeight: 51,
   },
-  secondary: { backgroundColor: colors.paper, borderWidth: 1, borderColor: colors.line },
-  error: { color: colors.red, fontSize: 14, lineHeight: 23 },
-  pill: { padding: 9, borderRadius: 10, backgroundColor: colors.paper },
-  label: { fontSize: 13, color: colors.muted },
+  secondary: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  error: {
+    color: colors.red,
+    fontSize: 14,
+    lineHeight: 23,
+  },
+  pill: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 13,
+    backgroundColor: colors.primarySoft,
+  },
+  label: {
+    fontSize: 13,
+    color: colors.muted,
+    fontWeight: '600',
+  },
 });
+
 export function useText() {
   const { locale } = useApp();
   return (ar: string, en: string) => (locale === 'ar' ? ar : en);
@@ -139,20 +205,34 @@ export function Field({ label, ...props }: TextInputProps & { label: string }) {
     </View>
   );
 }
-export function Photo({ uri }: { uri?: string | null }) {
+export function Photo({
+  uri,
+  height,
+}: {
+  uri?: string | null;
+  height?: number;
+}) {
+  const imageStyle = height ? [styles.image, { height }] : styles.image;
+
   return uri && /^https?:\/\//.test(uri) ? (
     <Image
       accessibilityIgnoresInvertColors
       source={{ uri }}
-      style={styles.image}
+      style={imageStyle}
       resizeMode="cover"
     />
   ) : (
-    <View style={[styles.image, { alignItems: 'center', justifyContent: 'center' }]}>
+    <View
+      style={[
+        imageStyle,
+        { alignItems: 'center', justifyContent: 'center' },
+      ]}
+    >
       <Text style={{ fontSize: 38, color: colors.green }}>م</Text>
     </View>
   );
 }
+
 export function Busy() {
   return (
     <ActivityIndicator accessibilityLabel="Loading" color={colors.green} style={{ padding: 24 }} />
