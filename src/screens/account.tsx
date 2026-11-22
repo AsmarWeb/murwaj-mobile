@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { router } from 'expo-router';
 import { View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { useApp } from '../session-context';
@@ -55,6 +56,18 @@ export function AccountScreen() {
       <ErrorText error={error} />
       {notice && <Txt>{notice}</Txt>}
       {issue && <Txt muted>{issue}</Txt>}
+      {session && (
+        <View style={{ backgroundColor: '#FFF0E9', borderRadius: 25, borderWidth: 1, borderColor: '#FFE0D2', padding: 20, gap: 9 }}>
+          <Txt muted>{t('ملفك الشخصي', 'Your profile')}</Txt>
+          <Txt title>{session.user.name}</Txt>
+          <Txt>{session.user.email}</Txt>
+          <Txt muted>{session.user.email_verified ? t('✓ البريد الإلكتروني موثّق', '✓ Email verified') : t('البريد الإلكتروني بانتظار التوثيق', 'Email verification pending')}</Txt>
+          <View style={{ flexDirection: 'row', gap: 9, marginTop: 5 }}>
+            <View style={{ flex: 1 }}><Button secondary label={t('طلباتي', 'My orders')} onPress={() => router.navigate('/orders')} /></View>
+            <View style={{ flex: 1 }}><Button secondary label={t('السلة', 'Basket')} onPress={() => router.navigate('/cart')} /></View>
+          </View>
+        </View>
+      )}
       {!native && (
         <Txt>
           {t(

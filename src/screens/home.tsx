@@ -1,9 +1,16 @@
-import React from 'react';
-import { ImageBackground, ScrollView, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import {
+  Image,
+  ImageBackground,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
+import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 
 import { httpsUrl } from '../core/api';
-
 import { useApp } from '../session-context';
 import { usePublicQuery } from '../use-public-query';
 import {
@@ -14,34 +21,111 @@ import {
   styles,
   Txt,
   useText,
+  colors,
 } from '../components/ui';
-import { Catalog, ProductCard } from './catalog';
 import type {
   MobileHomeCatalogSection,
   MobileHomeCategory,
   MobileHomeReply,
   MobileHomeSection,
+  Page,
   Product,
   Shop,
 } from '../core/types';
-import { nav } from '../navigation';
+
+const productRoute = (slug: string) =>
+  router.push({ pathname: '/product/[slug]', params: { slug } });
 
 export function HomeScreen() {
+  const { locale } = useApp();
   const t = useText();
-
+  const { data, error, busy, retry } =
+    usePublicQuery<MobileHomeReply>('/mobile/home');
   const {
-    data,
-    error,
-    busy,
-    retry,
-  } = usePublicQuery<MobileHomeReply>('/mobile/home');
+    data: latestProducts,
+    error: productsError,
+    busy: productsBusy,
+    retry: retryProducts,
+  } = usePublicQuery<Page<Product>>('/listings?per_page=8&page=1&sort=newest');
 
   const sections = data?.data?.sections ?? [];
+  const hasPublishedProductRail = sections.some((section) =>
+    ['products_latest', 'products_featured', 'products_selected'].includes(section.type),
+  );
+  const hasPublishedBanner = sections.some((section) => section.type === 'banner');
+  const products = latestProducts?.data ?? [];
+  const now = new Date();
+  const isWhiteFridaySeason =
+    now.getFullYear() === 2026 &&
+    now.getMonth() === 10 &&
+    now.getDate() >= 22 &&
+    now.getDate() <= 30;
 
-  const homeContent = (
-    <View style={{ gap: 20 }}>
+  return (
+    <ScrollView
+      contentContainerStyle={[styles.page, { paddingTop: 14, paddingBottom: 34, gap: 21 }]}
+      showsVerticalScrollIndicator={false}
+    >
+      <View
+        style={{
+          flexDirection: locale === 'ar' ? 'row-reverse' : 'row',
+          gap: 9,
+          alignItems: 'center',
+        }}
+      >
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('البحث عن المنتجات', 'Search products')}
+          onPress={() => router.push('/search')}
+          style={{
+            flex: 1,
+            minHeight: 55,
+            borderRadius: 18,
+            borderWidth: 1,
+            borderColor: colors.line,
+            backgroundColor: colors.white,
+            paddingHorizontal: 15,
+            flexDirection: locale === 'ar' ? 'row-reverse' : 'row',
+            alignItems: 'center',
+            gap: 11,
+          }}
+        >
+          <SearchGlyph color={colors.muted} />
+          <Text
+            numberOfLines={1}
+            style={{
+              flex: 1,
+              color: colors.muted,
+              fontSize: 13,
+              textAlign: locale === 'ar' ? 'right' : 'left',
+              writingDirection: locale === 'ar' ? 'rtl' : 'ltr',
+            }}
+          >
+            {t('ابحث عن المنتجات والعلامات والمتاجر...', 'Search products, brands and stores...')}
+          </Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('خيارات البحث والتصفية', 'Search and filter options')}
+          onPress={() => router.push('/search')}
+          style={{
+            width: 55,
+            height: 55,
+            borderRadius: 18,
+            borderWidth: 1,
+            borderColor: colors.line,
+            backgroundColor: colors.white,
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <FilterGlyph color={colors.ink} />
+        </Pressable>
+      </View>
+
+      {isWhiteFridaySeason && !hasPublishedBanner && <WhiteFridayCampaign />}
+
       {busy && <Busy />}
-
       {!!error && (
         <View style={styles.card}>
           <ErrorText error={error} />
@@ -53,123 +137,387 @@ export function HomeScreen() {
         </View>
       )}
 
+      {!busy && !error && sections.length === 0 && !isWhiteFridaySeason && (
+        <View style={[styles.card, { alignItems: 'center', paddingVertical: 28 }]}> 
+          <View style={{ width: 54, height: 54, borderRadius: 18, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 25, fontWeight: '900' }}>م</Text>
+          </View>
+          <Txt title>{t('مرحباً بك في مُروَّج.كم', 'Welcome to murwaj.com')}</Txt>
+          <Txt muted>
+            {t(
+              'نجهّز لك تجربة تسوّق تجمع المنتجات والمتاجر في مكان واحد.',
+              'Your shopping destination for products and independent stores.',
+            )}
+          </Txt>
+        </View>
+      )}
+
       {sections.map((section) => (
         <HomeSection
           key={section.id ?? `${section.type}-${section.position}`}
           section={section}
         />
       ))}
+
+      {!hasPublishedProductRail && (
+        <View style={{ gap: 12 }}>
+          <View
+            style={{
+              flexDirection: locale === 'ar' ? 'row-reverse' : 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+            }}
+          >
+            <Txt title>{t('وصل حديثاً', 'New arrivals')}</Txt>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('عرض كل المنتجات', 'See all products')}
+              onPress={() => router.push('/search')}
+              hitSlop={8}
+            >
+              <Txt muted>{t('عرض الكل', 'See all')} ›</Txt>
+            </Pressable>
+          </View>
+
+          {productsBusy && <Busy />}
+          {!!productsError && (
+            <View style={styles.card}>
+              <ErrorText error={productsError} />
+              <Button
+                label={t('إعادة المحاولة', 'Try again')}
+                secondary
+                onPress={retryProducts}
+              />
+            </View>
+          )}
+
+          {products.length === 1 ? (
+            <HomeProductCard product={products[0]} wide onPress={() => productRoute(products[0].slug)} />
+          ) : products.length > 1 ? (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 12, paddingBottom: 4 }}
+            >
+              {products.map((product) => (
+                <View key={product.id} style={{ width: 178 }}>
+                  <HomeProductCard product={product} onPress={() => productRoute(product.slug)} />
+                </View>
+              ))}
+            </ScrollView>
+          ) : !productsBusy && !productsError ? (
+            <View style={[styles.card, { paddingVertical: 20 }]}>
+              <Txt muted>
+                {t('ستظهر المنتجات الجديدة هنا عند توفرها.', 'New arrivals will appear here when available.')}
+              </Txt>
+            </View>
+          ) : null}
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
+function SearchGlyph({ color }: { color: string }) {
+  return (
+    <View style={{ width: 21, height: 21, alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={{
+          width: 13,
+          height: 13,
+          borderRadius: 7,
+          borderWidth: 2,
+          borderColor: color,
+          marginRight: 4,
+          marginBottom: 4,
+        }}
+      />
+      <View
+        style={{
+          position: 'absolute',
+          width: 8,
+          height: 2,
+          borderRadius: 2,
+          backgroundColor: color,
+          right: 0,
+          bottom: 2,
+          transform: [{ rotate: '45deg' }],
+        }}
+      />
     </View>
   );
+}
 
-  // Catalog remains the main list and retains its existing search,
-  // pagination, product navigation and fallback behavior.
-  return <Catalog nav={nav} homeContent={homeContent} />;
+function FilterGlyph({ color }: { color: string }) {
+  return (
+    <View style={{ width: 22, gap: 5 }}>
+      {[18, 22, 14].map((width, index) => (
+        <View
+          key={index}
+          style={{
+            width,
+            height: 2,
+            borderRadius: 2,
+            alignSelf: 'center',
+            backgroundColor: color,
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
+function WhiteFridayCampaign() {
+  const { locale } = useApp();
+  const t = useText();
+  const isArabic = locale === 'ar';
+
+  return (
+    <View
+      accessibilityLabel={t('حملة الجمعة البيضاء', 'White Friday campaign')}
+      style={{
+        minHeight: 238,
+        padding: 22,
+        borderRadius: 27,
+        overflow: 'hidden',
+        justifyContent: 'space-between',
+        backgroundColor: '#191512',
+        borderWidth: 1,
+        borderColor: '#332821',
+      }}
+    >
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          width: 210,
+          height: 210,
+          borderRadius: 105,
+          right: isArabic ? undefined : -70,
+          left: isArabic ? -70 : undefined,
+          top: -92,
+          backgroundColor: 'rgba(255,85,23,0.24)',
+        }}
+      />
+      <View style={{ gap: 14 }}>
+        <View
+          style={{
+            alignSelf: isArabic ? 'flex-end' : 'flex-start',
+            borderRadius: 30,
+            backgroundColor: colors.primary,
+            paddingHorizontal: 13,
+            paddingVertical: 7,
+          }}
+        >
+          <Text style={{ color: '#FFFFFF', fontSize: 11, fontWeight: '900', letterSpacing: 1 }}>
+            WHITE FRIDAY · 2026
+          </Text>
+        </View>
+        <Text
+          style={{
+            color: '#FFFFFF',
+            fontSize: 29,
+            lineHeight: 39,
+            fontWeight: '900',
+            textAlign: isArabic ? 'right' : 'left',
+            writingDirection: isArabic ? 'rtl' : 'ltr',
+          }}
+        >
+          {isArabic ? 'الجمعة البيضاء\nبذوق مُروَّج' : 'WHITE FRIDAY\nTHE MURWAJ EDIT'}
+        </Text>
+        <Text
+          style={{
+            color: '#E2D9D2',
+            fontSize: 14,
+            lineHeight: 23,
+            textAlign: isArabic ? 'right' : 'left',
+            writingDirection: isArabic ? 'rtl' : 'ltr',
+          }}
+        >
+          {isArabic
+            ? 'اكتشف المنتجات والمتاجر واختيارات الموسم في تجربة تسوّق واحدة.'
+            : 'Discover products, independent stores and seasonal finds in one place.'}
+        </Text>
+      </View>
+      <View
+        style={{
+          marginTop: 20,
+          paddingTop: 14,
+          borderTopWidth: 1,
+          borderTopColor: 'rgba(255,255,255,0.16)',
+          flexDirection: isArabic ? 'row-reverse' : 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 12 }}>
+          {isArabic ? 'اكتشف عروض الموسم' : 'Explore the season'}
+        </Text>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/search')}
+          style={{
+            minHeight: 39,
+            paddingHorizontal: 17,
+            borderRadius: 13,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: colors.primary,
+          }}
+        >
+          <Text style={{ color: '#FFFFFF', fontSize: 13, fontWeight: '800' }}>
+            {isArabic ? 'تسوّق الآن' : 'Shop now'}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function HomeProductCard({
+  product,
+  onPress,
+  wide = false,
+}: {
+  product: Product;
+  onPress: () => void;
+  wide?: boolean;
+}) {
+  const { locale } = useApp();
+  const t = useText();
+  const [imageFailed, setImageFailed] = useState(false);
+  const imageUri = typeof product.image_url === 'string' && /^https?:\/\//i.test(product.image_url)
+    ? product.image_url
+    : null;
+  const productTitle = locale === 'ar' ? product.title_ar || product.title : product.title;
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t(`عرض ${productTitle}`, `View ${productTitle}`)}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.card,
+        {
+          width: wide ? '100%' : '100%',
+          padding: wide ? 13 : 10,
+          gap: 9,
+          borderRadius: 21,
+          opacity: pressed ? 0.94 : 1,
+        },
+      ]}
+    >
+      <View
+        style={{
+          height: wide ? 218 : 142,
+          borderRadius: 16,
+          overflow: 'hidden',
+          backgroundColor: '#F7F1EC',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {imageUri && !imageFailed ? (
+          <Image
+            source={{ uri: imageUri }}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="cover"
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <View style={{ alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <View style={{ width: wide ? 62 : 52, height: wide ? 62 : 52, borderRadius: wide ? 21 : 18, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: '#FFFFFF', fontSize: wide ? 30 : 25, fontWeight: '900' }}>م</Text>
+            </View>
+            <Text style={{ color: '#8D8179', fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>
+              murwaj.com
+            </Text>
+          </View>
+        )}
+      </View>
+      <Text
+        numberOfLines={2}
+        style={{
+          color: colors.ink,
+          fontSize: wide ? 17 : 14,
+          lineHeight: wide ? 25 : 21,
+          fontWeight: '800',
+          textAlign: locale === 'ar' ? 'right' : 'left',
+          writingDirection: locale === 'ar' ? 'rtl' : 'ltr',
+        }}
+      >
+        {productTitle}
+      </Text>
+      {!!product.shop?.name && (
+        <Text
+          numberOfLines={1}
+          style={{
+            color: colors.muted,
+            fontSize: 12,
+            textAlign: locale === 'ar' ? 'right' : 'left',
+          }}
+        >
+          {product.shop.name}
+        </Text>
+      )}
+      <View
+        style={{
+          flexDirection: locale === 'ar' ? 'row-reverse' : 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          paddingTop: 4,
+        }}
+      >
+        <Text style={{ color: colors.ink, fontSize: wide ? 17 : 14, fontWeight: '900' }}>
+          {product.price} {product.currency}
+        </Text>
+        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '800' }}>
+          {t('التفاصيل', 'Details')} ›
+        </Text>
+      </View>
+    </Pressable>
+  );
 }
 
 function HomeSection({ section }: { section: MobileHomeSection }) {
   const { locale } = useApp();
   const t = useText();
-
-  const title =
-    locale === 'ar'
-      ? section.title_ar || section.title
-      : section.title || section.title_ar;
-
+  const title = locale === 'ar'
+    ? section.title_ar || section.title
+    : section.title || section.title_ar;
   const items = section.items ?? [];
-
 
   if (section.type === 'banner') {
     const imageUrl =
       typeof section.image === 'string' && /^https?:\/\//i.test(section.image.trim())
         ? section.image.trim()
         : null;
-
-    const content =
-      locale === 'ar'
-        ? section.content_ar || section.content
-        : section.content || section.content_ar;
-
-    const buttonText =
-      locale === 'ar'
-        ? section.button_text_ar || section.button_text
-        : section.button_text || section.button_text_ar;
-
+    const content = locale === 'ar'
+      ? section.content_ar || section.content
+      : section.content || section.content_ar;
+    const buttonText = locale === 'ar'
+      ? section.button_text_ar || section.button_text
+      : section.button_text || section.button_text_ar;
     const buttonUrl = httpsUrl(section.button_url);
 
-    const bannerContent = (
-      <View
-        style={{
-          padding: 22,
-          gap: 12,
-          backgroundColor: 'rgba(24, 18, 15, 0.48)',
-        }}
-      >
-        {!!title && (
-          <Text
-            style={{
-              color: '#FFFFFF',
-              fontSize: 25,
-              lineHeight: 33,
-              fontWeight: '800',
-              textAlign: locale === 'ar' ? 'right' : 'left',
-              writingDirection: locale === 'ar' ? 'rtl' : 'ltr',
-            }}
-          >
-            {title}
-          </Text>
-        )}
-
-        {!!content && (
-          <Text
-            style={{
-              color: '#FFFFFF',
-              fontSize: 15,
-              lineHeight: 24,
-              textAlign: locale === 'ar' ? 'right' : 'left',
-              writingDirection: locale === 'ar' ? 'rtl' : 'ltr',
-            }}
-          >
-            {content}
-          </Text>
-        )}
-
-        {!!buttonText && !!buttonUrl && (
-          <Button
-            label={buttonText}
-            onPress={() => void WebBrowser.openBrowserAsync(buttonUrl)}
-          />
-        )}
-      </View>
-    );
-
-    const bannerFrame = {
-      minHeight: 225,
-      justifyContent: 'flex-end' as const,
-      overflow: 'hidden' as const,
-      backgroundColor: '#FF5517',
-    };
-
     return (
-      <View
-        style={{
-          borderRadius: 22,
-          overflow: 'hidden',
-          backgroundColor: '#FF5517',
-        }}
-      >
+      <View style={{ minHeight: 230, borderRadius: 25, overflow: 'hidden', backgroundColor: '#F7C7B4' }}>
         {imageUrl ? (
-          <ImageBackground
-            source={{ uri: imageUrl }}
-            resizeMode="cover"
-            style={bannerFrame}
-            imageStyle={{ borderRadius: 22 }}
-          >
-            {bannerContent}
+          <ImageBackground source={{ uri: imageUrl }} resizeMode="cover" style={{ flex: 1, minHeight: 230, justifyContent: 'flex-end' }}>
+            <View style={{ padding: 20, gap: 9, backgroundColor: 'rgba(31,22,18,0.42)' }}>
+              {!!title && <Text style={{ color: '#FFFFFF', fontSize: 27, lineHeight: 34, fontWeight: '900', textAlign: locale === 'ar' ? 'right' : 'left', writingDirection: locale === 'ar' ? 'rtl' : 'ltr' }}>{title}</Text>}
+              {!!content && <Text style={{ color: '#FFFFFF', fontSize: 14, lineHeight: 22, textAlign: locale === 'ar' ? 'right' : 'left', writingDirection: locale === 'ar' ? 'rtl' : 'ltr' }}>{content}</Text>}
+              {!!buttonText && !!buttonUrl && <View style={{ alignSelf: locale === 'ar' ? 'flex-end' : 'flex-start', minWidth: 145 }}><Button label={buttonText} onPress={() => void WebBrowser.openBrowserAsync(buttonUrl)} /></View>}
+            </View>
           </ImageBackground>
         ) : (
-          <View style={bannerFrame}>
-            {bannerContent}
+          <View style={{ flex: 1, minHeight: 230, padding: 20, justifyContent: 'flex-end', gap: 10 }}>
+            {!!title && <Txt title>{title}</Txt>}
+            {!!content && <Txt>{content}</Txt>}
+            {!!buttonText && !!buttonUrl && <Button label={buttonText} onPress={() => void WebBrowser.openBrowserAsync(buttonUrl)} />}
           </View>
         )}
       </View>
@@ -177,28 +525,18 @@ function HomeSection({ section }: { section: MobileHomeSection }) {
   }
 
   if (section.type === 'editorial') {
-    const content =
-      locale === 'ar'
-        ? section.content_ar || section.content
-        : section.content || section.content_ar;
-
-    const buttonText =
-      locale === 'ar'
-        ? section.button_text_ar || section.button_text
-        : section.button_text || section.button_text_ar;
-
-    const buttonUrl = section.button_url;
-
+    const content = locale === 'ar'
+      ? section.content_ar || section.content
+      : section.content || section.content_ar;
+    const buttonText = locale === 'ar'
+      ? section.button_text_ar || section.button_text
+      : section.button_text || section.button_text_ar;
     return (
-      <View style={styles.card}>
+      <View style={[styles.card, { borderRadius: 23 }] }>
         {!!title && <Txt title>{title}</Txt>}
         {!!content && <Txt>{content}</Txt>}
-
-        {!!buttonText && !!buttonUrl && /^https:\/\//i.test(buttonUrl) && (
-          <Button
-            label={buttonText}
-            onPress={() => void WebBrowser.openBrowserAsync(buttonUrl)}
-          />
+        {!!buttonText && !!section.button_url && /^https:\/\//i.test(section.button_url) && (
+          <Button label={buttonText} onPress={() => void WebBrowser.openBrowserAsync(section.button_url!)} />
         )}
       </View>
     );
@@ -206,95 +544,103 @@ function HomeSection({ section }: { section: MobileHomeSection }) {
 
   if (items.length === 0) return null;
 
+  const productSection =
+    section.type === 'products_latest' ||
+    section.type === 'products_featured' ||
+    section.type === 'products_selected';
+
   return (
     <View style={{ gap: 12 }}>
-      {!!title && <Txt title>{title}</Txt>}
+      <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+        {!!title && <Txt title>{title}</Txt>}
+        {(section.type === 'categories' || productSection) && (
+          <Pressable accessibilityRole="button" onPress={() => router.push('/search')} hitSlop={8}>
+            <Txt muted>{t('عرض الكل', 'See all')} ›</Txt>
+          </Pressable>
+        )}
+      </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ gap: 12, paddingRight: 4 }}
-      >
-        {items.map((item, index) => {
-          const key = `${section.type}-${item.id}-${index}`;
+      {productSection && items.length === 1 ? (
+        <HomeProductCard
+          product={items[0] as Product}
+          wide
+          onPress={() => productRoute((items[0] as Product).slug)}
+        />
+      ) : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 3 }}>
+          {items.map((item, index) => {
+            const key = `${section.type}-${item.id}-${index}`;
 
-          if (
-            section.type === 'products_latest' ||
-            section.type === 'products_featured' ||
-            section.type === 'products_selected'
-          ) {
-            const product = item as Product;
+            if (productSection) {
+              const product = item as Product;
+              return (
+                <View key={key} style={{ width: 178 }}>
+                  <HomeProductCard product={product} onPress={() => productRoute(product.slug)} />
+                </View>
+              );
+            }
 
+            if (section.type === 'shops_latest' || section.type === 'shops_selected') {
+              const shop = item as Shop;
+              return (
+                <View key={key} style={[styles.card, { width: 190, padding: 12, borderRadius: 22 }]}>
+                  <Photo uri={shop.logo_url || shop.banner_url} height={112} />
+                  <Txt title>{locale === 'ar' ? shop.name_ar || shop.name : shop.name}</Txt>
+                  <Txt muted>{shop.verified ? t('متجر موثّق', 'Verified store') : t('متجر مستقل', 'Independent store')}</Txt>
+                  <Button label={t('زيارة المتجر', 'Visit store')} secondary onPress={() => router.push({ pathname: '/store/[slug]', params: { slug: shop.slug } })} />
+                </View>
+              );
+            }
+
+            if (section.type === 'categories') {
+              const category = item as MobileHomeCategory;
+              const uri = category.image && /^https?:\/\//i.test(category.image) ? category.image : null;
+              return (
+                <Pressable
+                  key={key}
+                  accessibilityRole="button"
+                  accessibilityLabel={locale === 'ar' ? category.name_ar || category.name : category.name}
+                  onPress={() => router.push({ pathname: '/search', params: { category_id: String(category.id) } })}
+                  style={{ width: 88, alignItems: 'center', gap: 8 }}
+                >
+                  {uri ? (
+                    <Image source={{ uri }} style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: colors.white }} resizeMode="cover" />
+                  ) : (
+                    <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: colors.primary, fontSize: 25, fontWeight: '900' }}>م</Text>
+                    </View>
+                  )}
+                  <Text numberOfLines={2} style={{ color: colors.ink, textAlign: 'center', fontSize: 12, fontWeight: '700' }}>
+                    {locale === 'ar' ? category.name_ar || category.name : category.name}
+                  </Text>
+                </Pressable>
+              );
+            }
+
+            const catalogSection = item as MobileHomeCatalogSection;
+            const uri = catalogSection.image && /^https?:\/\//i.test(catalogSection.image) ? catalogSection.image : null;
             return (
-              <View key={key} style={{ width: 245 }}>
-                <ProductCard
-                  product={product}
-                  onPress={() => nav.product(product.slug)}
-                />
-              </View>
+              <Pressable
+                key={key}
+                accessibilityRole="button"
+                onPress={() => router.push({ pathname: '/search', params: { section_id: String(catalogSection.id) } })}
+                style={{ width: 88, alignItems: 'center', gap: 8 }}
+              >
+                {uri ? (
+                  <Image source={{ uri }} style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: colors.white }} resizeMode="cover" />
+                ) : (
+                  <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: colors.primary, fontSize: 25, fontWeight: '900' }}>م</Text>
+                  </View>
+                )}
+                <Text numberOfLines={2} style={{ color: colors.ink, textAlign: 'center', fontSize: 12, fontWeight: '700' }}>
+                  {locale === 'ar' ? catalogSection.name_ar || catalogSection.name : catalogSection.name}
+                </Text>
+              </Pressable>
             );
-          }
-
-          if (
-            section.type === 'shops_latest' ||
-            section.type === 'shops_selected'
-          ) {
-            const shop = item as Shop;
-
-            return (
-              <View key={key} style={[styles.card, { width: 220 }]}>
-                <Photo uri={shop.logo_url || shop.banner_url} />
-
-                <Txt title>
-                  {locale === 'ar'
-                    ? shop.name_ar || shop.name
-                    : shop.name}
-                </Txt>
-
-                <Txt muted>
-                  {shop.verified
-                    ? t('متجر موثّق', 'Verified store')
-                    : t('متجر مستقل', 'Independent store')}
-                </Txt>
-
-                <Button
-                  label={t('زيارة المتجر', 'Visit store')}
-                  secondary
-                  onPress={() => nav.shop(shop.slug)}
-                />
-              </View>
-            );
-          }
-
-          if (section.type === 'categories') {
-            const category = item as MobileHomeCategory;
-
-            return (
-              <View key={key} style={[styles.card, { width: 165 }]}>
-                <Photo uri={category.image} />
-                <Txt title>
-                  {locale === 'ar'
-                    ? category.name_ar || category.name
-                    : category.name}
-                </Txt>
-              </View>
-            );
-          }
-
-          const catalogSection = item as MobileHomeCatalogSection;
-
-          return (
-            <View key={key} style={[styles.card, { width: 165 }]}>
-              <Photo uri={catalogSection.image} />
-              <Txt title>
-                {locale === 'ar'
-                  ? catalogSection.name_ar || catalogSection.name
-                  : catalogSection.name}
-              </Txt>
-            </View>
-          );
-        })}
-      </ScrollView>
+          })}
+        </ScrollView>
+      )}
     </View>
   );
 }

@@ -1,6 +1,8 @@
 import { usePublicQuery } from '../use-public-query';
 import React, { useRef, useState } from 'react';
-import { FlatList, Text, View } from 'react-native';
+import { FlatList, Image, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useApp } from '../session-context';
 import {
   Button,
@@ -31,11 +33,17 @@ export function Catalog({
   shops = false,
   shopSlug,
   homeContent,
+  searchOnly = false,
+  categoryId,
+  sectionId,
 }: {
   nav: Nav;
   shops?: boolean;
   shopSlug?: string;
   homeContent?: React.ReactNode;
+  searchOnly?: boolean;
+  categoryId?: string;
+  sectionId?: string;
 }) {
   const { locale } = useApp();
   const t = useText();
@@ -56,7 +64,7 @@ export function Catalog({
     busy,
     retry,
   } = usePublicQuery<Page<Product | Shop>>(
-    `${path}?per_page=12&page=${page}&q=${segment(q)}`,
+    `${path}?per_page=12&page=${page}&q=${segment(q)}${categoryId ? `&category_id=${segment(categoryId)}` : ''}${sectionId ? `&section_id=${segment(sectionId)}` : ''}`,
   );
 
   function search() {
@@ -85,7 +93,7 @@ export function Catalog({
       ItemSeparatorComponent={() => <View style={{ height: 13 }} />}
       ListHeaderComponent={
         <View style={{ gap: 19, marginBottom: 13 }}>
-          {!shopSlug && !shops && (
+          {!shopSlug && !shops && !searchOnly && (
             <View
               style={[
                 styles.hero,
@@ -152,7 +160,9 @@ export function Catalog({
                 ? t('منتجات المتجر', 'Store products')
                 : shops
                   ? t('اكتشف المتاجر', 'Discover stores')
-                  : t('اكتشف المنتجات', 'Discover products')}
+                  : searchOnly
+                    ? t('ابحث واكتشف', 'Search and discover')
+                    : t('اكتشف المنتجات', 'Discover products')}
             </Txt>
 
             <Field
@@ -357,40 +367,75 @@ export function ProductCard({
   onPress: () => void;
   compact?: boolean;
 }) {
-  const { locale } = useApp();
+  const { api, locale, session, checked } = useApp();
   const t = useText();
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(false);
+  const [error, setError] = useState<unknown>();
+  const [uncertain, setUncertain] = useState(false);
+  const lock = useRef(false);
+
+  async function quickAdd() {
+    if (added) {
+      router.push('/cart');
+      return;
+    }
+    if (!session) {
+      router.navigate('/account');
+      return;
+    }
+    if (!checked || lock.current || uncertain || p.quantity < 1 || p.currency !== 'AED') return;
+
+    lock.current = true;
+    setAdding(true);
+    setError(null);
+    try {
+      await api.request('/cart/items', session.token, locale, {
+        method: 'POST',
+        body: { listing_id: p.id, quantity: 1 },
+      });
+      setAdded(true);
+    } catch (e) {
+      setError(e);
+      setUncertain(true);
+    } finally {
+      setAdding(false);
+      lock.current = false;
+    }
+  }
 
   return (
-    <View
-      style={[
-        styles.card,
-        compact && {
-          flex: 1,
-          minWidth: 0,
-          padding: 11,
-          gap: 8,
-          borderRadius: 18,
-        },
-      ]}
-    >
-      <Photo uri={p.image_url} height={compact ? 128 : 175} />
-
-      <Txt title>
-        {locale === 'ar' ? p.title_ar || p.title : p.title}
-      </Txt>
-
+    <View style={[styles.card, compact && { flex: 1, minWidth: 0, padding: 9, gap: 7, borderRadius: 19 }]}>
+      <Pressable accessibilityRole="button" onPress={onPress}>
+        <Photo uri={p.image_url} height={compact ? 116 : 165} />
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={onPress}>
+        <Txt title>{locale === 'ar' ? p.title_ar || p.title : p.title}</Txt>
+      </Pressable>
       {!!p.shop?.name && <Txt muted>{p.shop.name}</Txt>}
-
-      <Money value={p.price} currency={p.currency} />
-
-      <Button
-        label={t('عرض المنتج', 'View product')}
-        onPress={onPress}
-        secondary
-      />
+      <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', gap: 5 }}>
+        <View style={{ flex: 1 }}>
+          <Money value={p.price} currency={p.currency} />
+          {typeof p.rating === 'number' && (
+            <Text style={{ color: '#B96B22', fontSize: 11, fontWeight: '800', marginTop: 2 }}>★ {p.rating.toFixed(1)}</Text>
+          )}
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={added ? t('فتح السلة', 'Open basket') : t('إضافة للسلة', 'Add to basket')}
+          accessibilityState={{ disabled: adding || uncertain || p.quantity < 1 || p.currency !== 'AED' || (!!session && !checked) }}
+          disabled={adding || uncertain || p.quantity < 1 || p.currency !== 'AED' || (!!session && !checked)}
+          onPress={() => void quickAdd()}
+          style={{ width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: added ? '#2E7D55' : colors.primary, opacity: adding ? 0.55 : 1 }}
+        >
+          <SymbolView name={added ? 'checkmark' : 'plus'} tintColor="#FFFFFF" size={18} />
+        </Pressable>
+      </View>
+      {!!error && <ErrorText error={error} />}
     </View>
   );
 }
+
 export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
   const { api, locale, session, checked } = useApp();
   const t = useText();
@@ -405,20 +450,32 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
   const [adding, setAdding] = useState(false);
   const [added, setAdded] = useState(false);
   const [uncertain, setUncertain] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [activeImage, setActiveImage] = useState(0);
   const addLock = useRef(false);
+
+  const gallery = product
+    ? [...new Set([...(product.image_urls ?? []), product.image_url ?? ''].filter((uri) => /^https?:\/\//i.test(uri)))]
+    : [];
+  const selectedImage = gallery[activeImage] || product?.image_url || null;
+
   async function add() {
     if (!session) {
       nav.account();
       return;
     }
-    if (addLock.current || uncertain) return;
+    if (added) {
+      nav.cart();
+      return;
+    }
+    if (addLock.current || uncertain || !checked || !product) return;
     addLock.current = true;
     setAdding(true);
     setError(null);
     try {
       await api.request('/cart/items', session.token, locale, {
         method: 'POST',
-        body: { listing_id: product!.id, quantity: 1 },
+        body: { listing_id: product.id, quantity },
       });
       setAdded(true);
     } catch (e) {
@@ -429,51 +486,118 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
       addLock.current = false;
     }
   }
+
+  async function shareProduct() {
+    if (!product) return;
+    try {
+      await Share.share({
+        title: locale === 'ar' ? product.title_ar || product.title : product.title,
+        message: `${locale === 'ar' ? product.title_ar || product.title : product.title} · ${product.price} ${product.currency}`,
+      });
+    } catch {
+      // Sharing cancellation is not an application error.
+    }
+  }
+
   return (
-    <View style={{ gap: 16 }}>
-      {busy && <Busy />}
-      <ErrorText error={error ?? fetchError} />
-      {!product && !busy && <Button label={t('إعادة المحاولة', 'Retry')} onPress={retry} />}
-      {product && (
-        <>
-          <Photo uri={product.image_url} />
-          <Txt title>{locale === 'ar' ? product.title_ar || product.title : product.title}</Txt>
-          <Money value={product.price} currency={product.currency} />
-          <Txt>{product.description || t('لا يوجد وصف إضافي.', 'No additional description.')}</Txt>
-          {product.features?.map((s, i) => (
-            <Txt muted key={i}>
-              • {s}
-            </Txt>
-          ))}
-          {product.shop && (
-            <Button
-              label={product.shop.name}
-              secondary
-              onPress={() => nav.shop(product.shop!.slug)}
-            />
+    <View style={{ flex: 1, backgroundColor: colors.paper }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 22 }}>
+        <View style={{ height: 415, backgroundColor: '#F5D2C2' }}>
+          {selectedImage ? (
+            <Image source={{ uri: selectedImage }} resizeMode="cover" style={{ width: '100%', height: '100%' }} />
+          ) : (
+            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: colors.primary, fontSize: 58, fontWeight: '900' }}>م</Text>
+            </View>
           )}
-          <Button
-            label={added ? t('عرض السلة', 'View basket') : t('أضف للسلة', 'Add to basket')}
-            disabled={
-              adding ||
-              uncertain ||
-              (!added && (product.currency !== 'AED' || product.quantity < 1)) ||
-              (!!session && !checked)
-            }
-            onPress={added ? nav.cart : () => void add()}
-          />
-          {uncertain && (
+          <View style={{ position: 'absolute', top: 14, left: 16, right: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('رجوع', 'Go back')} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.94)', alignItems: 'center', justifyContent: 'center' }}>
+              <SymbolView name="chevron.left" tintColor={colors.ink} size={19} />
+            </Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={t('مشاركة المنتج', 'Share product')} onPress={() => void shareProduct()} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.94)', alignItems: 'center', justifyContent: 'center' }}>
+              <SymbolView name="square.and.arrow.up" tintColor={colors.ink} size={19} />
+            </Pressable>
+          </View>
+          {gallery.length > 1 && (
+            <View style={{ position: 'absolute', right: 13, top: 76, gap: 8 }}>
+              {gallery.slice(0, 4).map((uri, index) => (
+                <Pressable key={`${uri}-${index}`} accessibilityRole="button" accessibilityLabel={t(`الصورة ${index + 1}`, `Image ${index + 1}`)} onPress={() => setActiveImage(index)} style={{ width: 52, height: 61, borderRadius: 11, borderWidth: activeImage === index ? 2 : 1, borderColor: activeImage === index ? colors.primary : '#FFFFFF', overflow: 'hidden', backgroundColor: '#FFFFFF' }}>
+                  <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                </Pressable>
+              ))}
+              {gallery.length > 4 && (
+                <View style={{ width: 52, height: 52, borderRadius: 11, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: colors.ink, fontWeight: '800' }}>+{gallery.length - 4}</Text>
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+
+        <View style={{ marginTop: -24, paddingHorizontal: 22, paddingTop: 23, paddingBottom: 26, borderTopLeftRadius: 27, borderTopRightRadius: 27, backgroundColor: colors.white, gap: 15 }}>
+          {busy && <Busy />}
+          <ErrorText error={error ?? fetchError} />
+          {!product && !busy && <Button label={t('إعادة المحاولة', 'Retry')} onPress={retry} />}
+          {product && (
             <>
-              <Txt muted>
-                {t(
-                  'تحقق من السلة قبل أي إضافة أخرى؛ قد تكون الإضافة وصلت.',
-                  'Check the basket before adding again; the request may have succeeded.',
-                )}
-              </Txt>
-              <Button label={t('تحقق من السلة', 'Check basket')} onPress={nav.cart} />
+              <View style={{ gap: 7 }}>
+                <Txt title>{locale === 'ar' ? product.title_ar || product.title : product.title}</Txt>
+                <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                  <Text style={{ color: colors.primary, fontSize: 23, fontWeight: '900' }}>{product.price} {product.currency}</Text>
+                  {typeof product.rating === 'number' && (
+                    <Text style={{ color: '#B96B22', fontSize: 13, fontWeight: '800' }}>★ {product.rating.toFixed(1)}</Text>
+                  )}
+                </View>
+              </View>
+
+              {!!product.description && <Txt>{product.description}</Txt>}
+              {!!product.shop?.name && (
+                <Pressable accessibilityRole="button" onPress={() => nav.shop(product.shop!.slug)} style={{ alignSelf: locale === 'ar' ? 'flex-end' : 'flex-start', backgroundColor: colors.primarySoft, borderRadius: 20, paddingHorizontal: 13, paddingVertical: 8 }}>
+                  <Text style={{ color: colors.primary, fontWeight: '800' }}>{product.shop.name}</Text>
+                </Pressable>
+              )}
+              {!!product.features?.length && (
+                <View style={{ gap: 7 }}>
+                  <Txt title>{t('تفاصيل المنتج', 'Product details')}</Txt>
+                  {product.features.map((feature, index) => <Txt muted key={`${index}-${feature}`}>• {feature}</Txt>)}
+                </View>
+              )}
+
+              <View style={{ height: 1, backgroundColor: colors.line }} />
+              <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={{ gap: 3 }}>
+                  <Txt title>{t('الكمية', 'Quantity')}</Txt>
+                  <Txt muted>{t(`المتوفر: ${product.quantity}`, `Available: ${product.quantity}`)}</Txt>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15, borderWidth: 1, borderColor: colors.line, borderRadius: 15, padding: 5 }}>
+                  <Pressable accessibilityRole="button" accessibilityLabel={t('تقليل الكمية', 'Decrease quantity')} disabled={quantity <= 1} onPress={() => setQuantity((value) => Math.max(1, value - 1))} style={{ width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper, opacity: quantity <= 1 ? 0.4 : 1 }}>
+                    <SymbolView name="minus" tintColor={colors.ink} size={15} />
+                  </Pressable>
+                  <Text style={{ minWidth: 20, textAlign: 'center', color: colors.ink, fontSize: 16, fontWeight: '800' }}>{quantity}</Text>
+                  <Pressable accessibilityRole="button" accessibilityLabel={t('زيادة الكمية', 'Increase quantity')} disabled={quantity >= product.quantity} onPress={() => setQuantity((value) => Math.min(product.quantity, value + 1))} style={{ width: 32, height: 32, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper, opacity: quantity >= product.quantity ? 0.4 : 1 }}>
+                    <SymbolView name="plus" tintColor={colors.ink} size={15} />
+                  </Pressable>
+                </View>
+              </View>
             </>
           )}
-        </>
+        </View>
+      </ScrollView>
+
+      {product && (
+        <View style={{ paddingHorizontal: 18, paddingTop: 12, paddingBottom: 12, backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: colors.line }}>
+          <Button
+            label={adding ? t('جارٍ الإضافة...', 'Adding...') : added ? t('عرض السلة', 'View basket') : t('أضف إلى السلة', 'Add to basket')}
+            disabled={adding || uncertain || product.quantity < 1 || product.currency !== 'AED' || (!!session && !checked) || !product}
+            onPress={() => void add()}
+          />
+          {(product.quantity < 1 || product.currency !== 'AED') && (
+            <Text style={{ color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 5 }}>
+              {product.quantity < 1 ? t('هذا المنتج غير متوفر حالياً', 'This product is currently unavailable') : t('العملة غير مدعومة لإتمام الشراء من التطبيق', 'This currency is not supported for app checkout')}
+            </Text>
+          )}
+          {uncertain && <Text style={{ color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 5 }}>{t('تحقق من السلة قبل إعادة المحاولة؛ قد تكون الإضافة تمت.', 'Check the basket before retrying; the item may already have been added.')}</Text>}
+        </View>
       )}
     </View>
   );
