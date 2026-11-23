@@ -7,6 +7,7 @@ export default function Cart() {
   return (
     <Page privatePage>
       <CartScreen
+        discover={() => router.navigate('/search')}
         product={nav.product}
         checkout={(shopId) =>
           router.push({ pathname: '/checkout', params: shopId ? { shopId: String(shopId) } : {} })

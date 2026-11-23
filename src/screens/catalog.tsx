@@ -55,6 +55,7 @@ export function Catalog({
   const [page, setPage] = useState(1);
   const [sort, setSort] = useState<'newest' | 'price_asc' | 'price_desc'>('newest');
   const [inStockOnly, setInStockOnly] = useState(false);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
 
   const columns = shops ? 1 : 2;
   const path = shopSlug
@@ -69,7 +70,7 @@ export function Catalog({
     busy,
     retry,
   } = usePublicQuery<Page<Product | Shop>>(
-    `${path}?per_page=12&page=${page}&q=${segment(q)}&sort=${shopSlug ? sort : 'newest'}${shopSlug && inStockOnly ? '&in_stock=1' : ''}${categoryId ? `&category_id=${segment(categoryId)}` : ''}${sectionId ? `&section_id=${segment(sectionId)}` : ''}`,
+    `${path}?per_page=12&page=${page}&q=${segment(q)}&sort=${shops ? 'newest' : sort}${!shops && inStockOnly ? '&in_stock=1' : ''}${categoryId ? `&category_id=${segment(categoryId)}` : ''}${sectionId ? `&section_id=${segment(sectionId)}` : ''}${shops && verifiedOnly ? '&verified=1' : ''}`,
   );
 
   function search() {
@@ -209,9 +210,61 @@ export function Catalog({
                 />
               )}
             </View>
+
+            {shops && (
+              <Pressable
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: verifiedOnly }}
+                onPress={() => {
+                  setVerifiedOnly((value) => !value);
+                  setPage(1);
+                }}
+                style={{
+                  alignSelf: locale === 'ar' ? 'flex-end' : 'flex-start',
+                  minHeight: 42,
+                  paddingHorizontal: 13,
+                  paddingVertical: 9,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: verifiedOnly ? colors.primary : colors.line,
+                  backgroundColor: verifiedOnly ? colors.primarySoft : colors.white,
+                  flexDirection: locale === 'ar' ? 'row-reverse' : 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <View
+                  style={{
+                    width: 19,
+                    height: 19,
+                    borderRadius: 6,
+                    borderWidth: 1,
+                    borderColor: verifiedOnly ? colors.primary : colors.muted,
+                    backgroundColor: verifiedOnly ? colors.primary : colors.white,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {verifiedOnly && (
+                    <Text style={{ color: colors.white, fontSize: 12, fontWeight: '900' }}>
+                      ✓
+                    </Text>
+                  )}
+                </View>
+                <Text
+                  style={{
+                    color: verifiedOnly ? colors.primary : colors.ink,
+                    fontSize: 12,
+                    fontWeight: '800',
+                  }}
+                >
+                  {t('المتاجر الموثّقة فقط', 'Verified stores only')}
+                </Text>
+              </Pressable>
+            )}
           </View>
 
-          {shopSlug && (
+          {!shops && (
             <View style={{ gap: 10 }}>
               <Txt muted>{t('ترتيب وتصفية المنتجات', 'Sort and filter products')}</Txt>
               <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -287,20 +340,41 @@ export function Catalog({
       }
       ListEmptyComponent={
         !busy && !error ? (
-          <View style={styles.card}>
+          <View style={[styles.card, { gap: 12 }]}>
             <Txt title>
-              {t('لا توجد نتائج حاليًا', 'No results found')}
+              {shops
+                ? verifiedOnly
+                  ? t('لا توجد متاجر موثّقة متاحة حاليًا', 'No verified stores available right now')
+                  : t('لا توجد متاجر مطابقة', 'No matching stores')
+                : t('لا توجد نتائج حاليًا', 'No results found')}
             </Txt>
             <Txt muted>
-              {t(
-                'جرّب كلمة بحث أخرى أو امسح البحث لعرض المنتجات المتاحة.',
-                'Try another search term or clear the search to see available items.',
-              )}
+              {shops
+                ? verifiedOnly
+                  ? t(
+                      'لا توجد متاجر موثّقة تطابق خياراتك حاليًا. يمكنك عرض جميع المتاجر.',
+                      'No verified stores match your current filters. You can view all stores.',
+                    )
+                  : t(
+                      'جرّب البحث باسم متجر آخر أو امسح عبارة البحث.',
+                      'Try another store name or clear your search.',
+                    )
+                : t(
+                    'جرّب كلمة بحث أخرى أو امسح البحث لعرض المنتجات المتاحة.',
+                    'Try another search term or clear the search to see available items.',
+                  )}
             </Txt>
             {!!q && (
               <Button
-                label={t('عرض جميع النتائج', 'Show all items')}
+                label={t('مسح البحث', 'Clear search')}
                 onPress={clearSearch}
+                secondary
+              />
+            )}
+            {shops && verifiedOnly && (
+              <Button
+                label={t('عرض جميع المتاجر', 'Show all stores')}
+                onPress={() => setVerifiedOnly(false)}
                 secondary
               />
             )}

@@ -1,11 +1,11 @@
 import React, { useMemo, useState } from 'react';
 import { FlatList, Image, Pressable, Text, View } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { router } from 'expo-router';
 
-import { resolveMediaUrl } from '../core/api';
-import type { MobileHomeCategory, MobileHomeReply } from '../core/types';
-import { useApp } from '../session-context';
-import { usePublicQuery } from '../use-public-query';
+import { resolveMediaUrl } from '../../core/api';
+import type { MobileHomeCategory, MobileHomeReply } from '../../core/types';
+import { useApp } from '../../session-context';
+import { usePublicQuery } from '../../use-public-query';
 import {
   Button,
   Busy,
@@ -15,7 +15,7 @@ import {
   styles,
   Txt,
   useText,
-} from '../components/ui';
+} from '../../components/ui';
 
 export default function CategoriesScreen() {
   const { locale } = useApp();
@@ -31,8 +31,13 @@ export default function CategoriesScreen() {
     for (const section of sections) {
       if (section.type !== 'categories') continue;
       for (const item of section.items ?? []) {
-        if ('slug' in item && 'name' in item && 'image' in item) {
-          const category = item as MobileHomeCategory;
+        const category = item as MobileHomeCategory;
+
+        if (
+          Number.isSafeInteger(category.id) &&
+          typeof category.slug === 'string' &&
+          typeof category.name === 'string'
+        ) {
           unique.set(category.id, category);
         }
       }
@@ -48,7 +53,7 @@ export default function CategoriesScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
-      <Stack.Screen options={{ title: t('الفئات', 'Categories') }} />
+
       <FlatList
         data={categories}
         numColumns={2}
@@ -108,11 +113,11 @@ export default function CategoriesScreen() {
         ListEmptyComponent={
           !busy && !error ? (
             <View style={[styles.card, { flex: 1, padding: 20, gap: 8 }]}>
-              <Txt title>{t('لا توجد فئات متاحة', 'No categories available')}</Txt>
+              <Txt title>{t('لا توجد فئات واردة من المنصة حاليًا', 'No categories have been provided yet')}</Txt>
               <Txt muted>
                 {t(
-                  'ستظهر هنا الفئات التي تحتوي على منتجات منشورة في المنصة.',
-                  'Categories with published products will appear here.',
+                  'ستظهر هنا الفئات الرئيسية التي ترسلها المنصة، بما فيها الفئات التي لم تُضف إليها منتجات بعد.',
+                  'Main categories supplied by the platform will appear here, including categories without products.',
                 )}
               </Txt>
             </View>
@@ -130,6 +135,7 @@ export default function CategoriesScreen() {
   );
 }
 
+
 function CategoryCard({
   category,
   onPress,
@@ -140,20 +146,43 @@ function CategoryCard({
   const { api, locale } = useApp();
   const t = useText();
   const [failedImage, setFailedImage] = useState<string | null>(null);
+
   const imageUri = resolveMediaUrl(category.image, api.origin);
-  const name = locale === 'ar' ? category.name_ar || category.name : category.name;
+  const name =
+    locale === 'ar' ? category.name_ar || category.name : category.name;
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={t(`عرض فئة ${name}`, `View ${name} category`)}
+      accessibilityHint={t(
+        'افتح الفئة لاستكشاف منتجاتها',
+        'Open this category to explore its products',
+      )}
       onPress={onPress}
       style={({ pressed }) => [
         styles.card,
-        { flex: 1, minWidth: 0, padding: 9, borderRadius: 20, gap: 9, opacity: pressed ? 0.93 : 1 },
+        {
+          flex: 1,
+          minWidth: 0,
+          padding: 10,
+          borderRadius: 22,
+          gap: 11,
+          opacity: pressed ? 0.93 : 1,
+          transform: [{ scale: pressed ? 0.99 : 1 }],
+        },
       ]}
     >
-      <View style={{ height: 132, borderRadius: 15, overflow: 'hidden', backgroundColor: '#F7F1EC', alignItems: 'center', justifyContent: 'center' }}>
+      <View
+        style={{
+          height: 145,
+          borderRadius: 16,
+          overflow: 'hidden',
+          backgroundColor: '#F7F1EC',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         {imageUri && failedImage !== imageUri ? (
           <Image
             source={{ uri: imageUri }}
@@ -162,24 +191,107 @@ function CategoryCard({
             onError={() => setFailedImage(imageUri)}
           />
         ) : (
-          <View style={{ width: 52, height: 52, borderRadius: 17, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: colors.primary, fontSize: 27, fontWeight: '900' }}>م</Text>
+          <View
+            style={{
+              flex: 1,
+              width: '100%',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 7,
+              backgroundColor: colors.primarySoft,
+            }}
+          >
+            <View
+              style={{
+                width: 57,
+                height: 57,
+                borderRadius: 19,
+                backgroundColor: colors.primary,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text
+                style={{
+                  color: '#FFFFFF',
+                  fontSize: 29,
+                  fontWeight: '900',
+                }}
+              >
+                م
+              </Text>
+            </View>
+            <Text
+              style={{
+                color: colors.muted,
+                fontSize: 9,
+                fontWeight: '900',
+                letterSpacing: 1,
+              }}
+            >
+              murwaj.com
+            </Text>
           </View>
         )}
+
+        <View
+          style={{
+            position: 'absolute',
+            bottom: 9,
+            [locale === 'ar' ? 'left' : 'right']: 9,
+            width: 31,
+            height: 31,
+            borderRadius: 11,
+            backgroundColor: 'rgba(255,255,255,0.96)',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Text style={{ color: colors.primary, fontSize: 18, fontWeight: '900' }}>
+            {locale === 'ar' ? '←' : '→'}
+          </Text>
+        </View>
       </View>
-      <Text
-        numberOfLines={2}
+
+      <View
         style={{
-          minHeight: 38, color: colors.ink, fontSize: 13, lineHeight: 19, fontWeight: '900',
-          textAlign: locale === 'ar' ? 'right' : 'left',
-          writingDirection: locale === 'ar' ? 'rtl' : 'ltr',
+          minHeight: 62,
+          justifyContent: 'space-between',
+          gap: 8,
         }}
       >
-        {name}
-      </Text>
-      <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '900', textAlign: locale === 'ar' ? 'right' : 'left' }}>
-        {t('تسوّق الآن', 'Shop now')} ›
-      </Text>
+        <Text
+          numberOfLines={2}
+          style={{
+            color: colors.ink,
+            fontSize: 14,
+            lineHeight: 21,
+            fontWeight: '900',
+            textAlign: locale === 'ar' ? 'right' : 'left',
+            writingDirection: locale === 'ar' ? 'rtl' : 'ltr',
+          }}
+        >
+          {name}
+        </Text>
+
+        <View
+          style={{
+            flexDirection: locale === 'ar' ? 'row-reverse' : 'row',
+            alignItems: 'center',
+            gap: 5,
+          }}
+        >
+          <Text
+            style={{
+              color: colors.primary,
+              fontSize: 11,
+              fontWeight: '900',
+            }}
+          >
+            {t('تسوّق حسب الفئة', 'Shop this category')}
+          </Text>
+        </View>
+      </View>
     </Pressable>
   );
 }
