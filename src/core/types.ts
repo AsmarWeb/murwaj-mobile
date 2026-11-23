@@ -25,9 +25,12 @@ export type Shop = {
   name: string;
   name_ar?: string | null;
   description?: string;
+  location?: string | null;
+  rating?: number | null;
   logo_url?: string | null;
   banner_url?: string | null;
   verified?: boolean;
+  listings?: Product[];
 };
 export type Product = {
   id: number;
