@@ -1,7 +1,7 @@
 import { usePublicQuery } from '../use-public-query';
 import { resolveMediaUrl } from '../core/api';
 import React, { useRef, useState } from 'react';
-import { FlatList, Image, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { FlatList, Image, Modal, PanResponder, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useApp } from '../session-context';
@@ -624,6 +624,7 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
   const [uncertain, setUncertain] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
+  const [galleryVisible, setGalleryVisible] = useState(false);
   const [failedImageUri, setFailedImageUri] = useState<string | null>(null);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const addLock = useRef(false);
@@ -634,6 +635,24 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
         .filter((uri): uri is string => Boolean(uri))
     : [];
   const selectedImage = gallery[activeImage] ?? resolveMediaUrl(product?.image_url, api.origin);
+
+  const galleryPanResponder = React.useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          gallery.length > 1 &&
+          Math.abs(gesture.dx) > 12 &&
+          Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.2,
+        onPanResponderRelease: (_, gesture) => {
+          if (gesture.dx <= -45) {
+            setActiveImage((current) => Math.min(gallery.length - 1, current + 1));
+          } else if (gesture.dx >= 45) {
+            setActiveImage((current) => Math.max(0, current - 1));
+          }
+        },
+      }),
+    [gallery.length],
+  );
 
   async function add() {
     if (!session) {
@@ -678,7 +697,7 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 22 }}>
-        <View style={{ height: 415, backgroundColor: '#F5D2C2' }}>
+        <View style={{ height: 415, backgroundColor: '#F5D2C2' }} {...galleryPanResponder.panHandlers}>
           {selectedImage && failedImageUri !== selectedImage ? (
             <Image
               source={{ uri: selectedImage }}
@@ -744,6 +763,29 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
               </Text>
             </View>
           )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('عرض الصور بملء الشاشة', 'View images full screen')}
+            onPress={() => setGalleryVisible(true)}
+            style={{
+              position: 'absolute',
+              bottom: 14,
+              left: locale === 'ar' ? 13 : undefined,
+              right: locale === 'ar' ? undefined : 13,
+              width: 42,
+              height: 42,
+              borderRadius: 21,
+              backgroundColor: 'rgba(255,255,255,0.96)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <SymbolView
+              name={{ ios: 'arrow.up.left.and.arrow.down.right', android: 'fullscreen', web: 'fullscreen' }}
+              tintColor={colors.ink}
+              size={19}
+            />
+          </Pressable>
         </View>
 
         <View style={{ marginTop: -24, paddingHorizontal: 22, paddingTop: 23, paddingBottom: 26, borderTopLeftRadius: 27, borderTopRightRadius: 27, backgroundColor: colors.white, gap: 15 }}>
@@ -930,8 +972,185 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
           {uncertain && <Text style={{ color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 5 }}>{t('تحقق من السلة قبل إعادة المحاولة؛ قد تكون الإضافة تمت.', 'Check the basket before retrying; the item may already have been added.')}</Text>}
         </View>
       )}
+      <Modal
+        visible={galleryVisible}
+        animationType="fade"
+        onRequestClose={() => setGalleryVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: '#090909' }}>
+          <View
+            style={{
+              paddingTop: 18,
+              paddingHorizontal: 18,
+              paddingBottom: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('إغلاق المعرض', 'Close gallery')}
+              onPress={() => setGalleryVisible(false)}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: 'rgba(255,255,255,0.14)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <SymbolView
+                name={{ ios: 'xmark', android: 'close', web: 'close' }}
+                tintColor="#FFFFFF"
+                size={21}
+              />
+            </Pressable>
+
+            <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '800' }}>
+              {gallery.length ? `${activeImage + 1} / ${gallery.length}` : '1 / 1'}
+            </Text>
+            <View style={{ width: 44 }} />
+          </View>
+
+          <View
+            style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+            {...galleryPanResponder.panHandlers}
+          >
+            {selectedImage && failedImageUri !== selectedImage ? (
+              <Image
+                source={{ uri: selectedImage }}
+                resizeMode="contain"
+                style={{ width: '100%', height: '100%' }}
+                onError={() => setFailedImageUri(selectedImage)}
+              />
+            ) : (
+              <View
+                style={{
+                  flex: 1,
+                  width: '100%',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#171717',
+                }}
+              >
+                <Text style={{ color: colors.primary, fontSize: 58, fontWeight: '900' }}>م</Text>
+                <Text style={{ color: '#BBBBBB', fontSize: 11, fontWeight: '800', marginTop: 7 }}>
+                  murwaj.com
+                </Text>
+              </View>
+            )}
+
+            {gallery.length > 1 && (
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('الصورة السابقة', 'Previous image')}
+                  accessibilityState={{ disabled: activeImage === 0 }}
+                  disabled={activeImage === 0}
+                  onPress={() => setActiveImage((current) => Math.max(0, current - 1))}
+                  style={{
+                    position: 'absolute',
+                    left: 14,
+                    top: '46%',
+                    width: 46,
+                    height: 46,
+                    borderRadius: 23,
+                    backgroundColor: 'rgba(255,255,255,0.16)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: activeImage === 0 ? 0.35 : 1,
+                  }}
+                >
+                  <SymbolView
+                    name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
+                    tintColor="#FFFFFF"
+                    size={21}
+                  />
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('الصورة التالية', 'Next image')}
+                  accessibilityState={{ disabled: activeImage >= gallery.length - 1 }}
+                  disabled={activeImage >= gallery.length - 1}
+                  onPress={() =>
+                    setActiveImage((current) => Math.min(gallery.length - 1, current + 1))
+                  }
+                  style={{
+                    position: 'absolute',
+                    right: 14,
+                    top: '46%',
+                    width: 46,
+                    height: 46,
+                    borderRadius: 23,
+                    backgroundColor: 'rgba(255,255,255,0.16)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: activeImage >= gallery.length - 1 ? 0.35 : 1,
+                  }}
+                >
+                  <SymbolView
+                    name={{ ios: 'chevron.right', android: 'arrow_forward', web: 'arrow_forward' }}
+                    tintColor="#FFFFFF"
+                    size={21}
+                  />
+                </Pressable>
+              </>
+            )}
+          </View>
+
+          {gallery.length > 1 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
+                gap: 10,
+                paddingHorizontal: 18,
+                paddingTop: 12,
+                paddingBottom: 26,
+              }}
+            >
+              {gallery.map((uri, index) => (
+                <Pressable
+                  key={`${uri}-${index}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: activeImage === index }}
+                  accessibilityLabel={t(`الصورة ${index + 1}`, `Image ${index + 1}`)}
+                  onPress={() => setActiveImage(index)}
+                  style={{
+                    width: 62,
+                    height: 72,
+                    borderRadius: 11,
+                    borderWidth: activeImage === index ? 2 : 1,
+                    borderColor: activeImage === index ? colors.primary : '#555555',
+                    overflow: 'hidden',
+                    backgroundColor: '#252525',
+                  }}
+                >
+                  {failedImageUri === uri ? (
+                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: colors.primary, fontSize: 22, fontWeight: '900' }}>م</Text>
+                    </View>
+                  ) : (
+                    <Image
+                      source={{ uri }}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="cover"
+                      onError={() => setFailedImageUri(uri)}
+                    />
+                  )}
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
     </View>
   );
+
+
 }
 export function ShopScreen({ slug, nav }: { slug: string; nav: Nav }) {
   const { api, locale } = useApp();
