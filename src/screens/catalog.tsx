@@ -346,7 +346,12 @@ export function Catalog({
                 ? verifiedOnly
                   ? t('لا توجد متاجر موثّقة متاحة حاليًا', 'No verified stores available right now')
                   : t('لا توجد متاجر مطابقة', 'No matching stores')
-                : t('لا توجد نتائج حاليًا', 'No results found')}
+                : categoryId && !q && !inStockOnly
+                  ? t(
+                      'لا توجد منتجات منشورة ضمن هذه الفئة حاليًا',
+                      'There are no published products in this category right now.',
+                    )
+                  : t('لا توجد نتائج حاليًا', 'No results found')}
             </Txt>
             <Txt muted>
               {shops
@@ -359,10 +364,15 @@ export function Catalog({
                       'جرّب البحث باسم متجر آخر أو امسح عبارة البحث.',
                       'Try another store name or clear your search.',
                     )
-                : t(
-                    'جرّب كلمة بحث أخرى أو امسح البحث لعرض المنتجات المتاحة.',
-                    'Try another search term or clear the search to see available items.',
-                  )}
+                : categoryId && !q && !inStockOnly
+                  ? t(
+                      'يمكنك استكشاف فئات أخرى أو العودة لاحقًا للاطلاع على المنتجات الجديدة.',
+                      'Explore other categories or check back later for new products.',
+                    )
+                  : t(
+                      'جرّب كلمة بحث أخرى أو امسح البحث لعرض المنتجات المتاحة.',
+                      'Try another search term or clear the search to see available items.',
+                    )}
             </Txt>
             {!!q && (
               <Button
@@ -615,6 +625,7 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
   const [failedImageUri, setFailedImageUri] = useState<string | null>(null);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const addLock = useRef(false);
 
   const gallery = product
@@ -690,9 +701,9 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
             </Pressable>
           </View>
           {gallery.length > 1 && (
-            <View style={{ position: 'absolute', right: 13, top: 76, gap: 8 }}>
+            <View style={{ position: 'absolute', left: locale === 'ar' ? 13 : undefined, right: locale === 'ar' ? undefined : 13, top: 76, gap: 8 }}>
               {gallery.slice(0, 4).map((uri, index) => (
-                <Pressable key={`${uri}-${index}`} accessibilityRole="button" accessibilityLabel={t(`الصورة ${index + 1}`, `Image ${index + 1}`)} onPress={() => setActiveImage(index)} style={{ width: 52, height: 61, borderRadius: 11, borderWidth: activeImage === index ? 2 : 1, borderColor: activeImage === index ? colors.primary : '#FFFFFF', overflow: 'hidden', backgroundColor: '#FFFFFF' }}>
+                <Pressable key={`${uri}-${index}`} accessibilityRole="button" accessibilityState={{ selected: activeImage === index }} accessibilityLabel={t(`الصورة ${index + 1}`, `Image ${index + 1}`)} onPress={() => setActiveImage(index)} style={{ width: 52, height: 61, borderRadius: 11, borderWidth: activeImage === index ? 2 : 1, borderColor: activeImage === index ? colors.primary : '#FFFFFF', overflow: 'hidden', backgroundColor: '#FFFFFF' }}>
                   {failedImageUri === uri ? (
                     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAF3EE' }}>
                       <Text style={{ color: colors.primary, fontSize: 22, fontWeight: '900' }}>م</Text>
@@ -709,6 +720,30 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
               )}
             </View>
           )}
+          {gallery.length > 1 && (
+            <View
+              accessibilityLabel={t(
+                `الصورة ${activeImage + 1} من ${gallery.length}`,
+                `Image ${activeImage + 1} of ${gallery.length}`,
+              )}
+              style={{
+                position: 'absolute',
+                bottom: 14,
+                left: locale === 'ar' ? undefined : 16,
+                right: locale === 'ar' ? 16 : undefined,
+                paddingHorizontal: 11,
+                paddingVertical: 7,
+                borderRadius: 20,
+                backgroundColor: 'rgba(255,255,255,0.94)',
+                borderWidth: 1,
+                borderColor: 'rgba(0,0,0,0.05)',
+              }}
+            >
+              <Text style={{ color: colors.ink, fontSize: 12, fontWeight: '800' }}>
+                {activeImage + 1} / {gallery.length}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={{ marginTop: -24, paddingHorizontal: 22, paddingTop: 23, paddingBottom: 26, borderTopLeftRadius: 27, borderTopRightRadius: 27, backgroundColor: colors.white, gap: 15 }}>
@@ -719,24 +754,143 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
             <>
               <View style={{ gap: 7 }}>
                 <Txt title>{locale === 'ar' ? product.title_ar || product.title : product.title}</Txt>
-                <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                  <Text style={{ color: colors.primary, fontSize: 23, fontWeight: '900' }}>{product.price} {product.currency}</Text>
-                  {typeof product.rating === 'number' && (
-                    <Text style={{ color: '#B96B22', fontSize: 13, fontWeight: '800' }}>★ {product.rating.toFixed(1)}</Text>
-                  )}
+                <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                  <Text style={{ color: colors.primary, fontSize: 25, fontWeight: '900' }}>{product.price} {product.currency}</Text>
+
+                  <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                    {typeof product.rating === 'number' && (
+                      <View style={{ paddingHorizontal: 10, paddingVertical: 7, borderRadius: 20, backgroundColor: '#FFF5E8', borderWidth: 1, borderColor: '#F5E3C8' }}>
+                        <Text style={{ color: '#A76518', fontSize: 12, fontWeight: '800' }}>★ {product.rating.toFixed(1)}</Text>
+                      </View>
+                    )}
+
+                    <View style={{ paddingHorizontal: 10, paddingVertical: 7, borderRadius: 20, backgroundColor: product.quantity > 0 ? '#EDF7F0' : '#FFF0ED', borderWidth: 1, borderColor: product.quantity > 0 ? '#D8EBDD' : '#F5D9D3' }}>
+                      <Text style={{ color: product.quantity > 0 ? '#287344' : '#B54735', fontSize: 11, fontWeight: '800' }}>
+                        {product.quantity > 0 ? t('متوفر', 'In stock') : t('نفد المخزون', 'Out of stock')}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               </View>
 
-              {!!product.description && <Txt>{product.description}</Txt>}
+              {!!product.description && (
+                <View style={{ gap: 7 }}>
+                  <Text
+                    numberOfLines={descriptionExpanded ? undefined : 4}
+                    style={{
+                      color: colors.ink,
+                      fontSize: 14,
+                      lineHeight: 23,
+                      fontWeight: '500',
+                      textAlign: locale === 'ar' ? 'right' : 'left',
+                    }}
+                  >
+                    {product.description}
+                  </Text>
+
+                  {product.description.length > 180 && (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded: descriptionExpanded }}
+                      onPress={() => setDescriptionExpanded((value) => !value)}
+                      style={{
+                        alignSelf: locale === 'ar' ? 'flex-end' : 'flex-start',
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '800' }}>
+                        {descriptionExpanded
+                          ? t('عرض أقل', 'Show less')
+                          : t('قراءة المزيد', 'Read more')}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
               {!!product.shop?.name && (
-                <Pressable accessibilityRole="button" onPress={() => nav.shop(product.shop!.slug)} style={{ alignSelf: locale === 'ar' ? 'flex-end' : 'flex-start', backgroundColor: colors.primarySoft, borderRadius: 20, paddingHorizontal: 13, paddingVertical: 8 }}>
-                  <Text style={{ color: colors.primary, fontWeight: '800' }}>{product.shop.name}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t(`زيارة متجر ${product.shop.name}`, `Visit ${product.shop.name} store`)}
+                  onPress={() => nav.shop(product.shop!.slug)}
+                  style={{
+                    flexDirection: locale === 'ar' ? 'row-reverse' : 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: 14,
+                    borderRadius: 18,
+                    borderWidth: 1,
+                    borderColor: colors.line,
+                    backgroundColor: colors.paper,
+                  }}
+                >
+                  <View style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 14,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: colors.primarySoft,
+                  }}>
+                    <SymbolView
+                      name={{ ios: 'storefront', android: 'storefront', web: 'storefront' }}
+                      tintColor={colors.primary}
+                      size={21}
+                    />
+                  </View>
+                  <View style={{ flex: 1, gap: 4, alignItems: locale === 'ar' ? 'flex-end' : 'flex-start' }}>
+                    <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>
+                      {t('المتجر', 'STORE')}
+                    </Text>
+                    <Text style={{ color: colors.ink, fontSize: 14, fontWeight: '900' }}>
+                      {product.shop.name}
+                    </Text>
+                    <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>
+                      {t('زيارة المتجر ومشاهدة منتجاته', 'Visit store and explore products')}
+                    </Text>
+                  </View>
                 </Pressable>
               )}
               {!!product.features?.length && (
-                <View style={{ gap: 7 }}>
+                <View style={{ gap: 10 }}>
                   <Txt title>{t('تفاصيل المنتج', 'Product details')}</Txt>
-                  {product.features.map((feature, index) => <Txt muted key={`${index}-${feature}`}>• {feature}</Txt>)}
+                  <View style={{
+                    borderWidth: 1,
+                    borderColor: colors.line,
+                    borderRadius: 16,
+                    overflow: 'hidden',
+                    backgroundColor: colors.white,
+                  }}>
+                    {product.features.map((feature, index) => (
+                      <View
+                        key={`${index}-${feature}`}
+                        style={{
+                          flexDirection: locale === 'ar' ? 'row-reverse' : 'row',
+                          alignItems: 'center',
+                          gap: 11,
+                          paddingHorizontal: 14,
+                          paddingVertical: 13,
+                          borderBottomWidth: index < product.features!.length - 1 ? 1 : 0,
+                          borderBottomColor: colors.line,
+                        }}
+                      >
+                        <View style={{
+                          width: 7,
+                          height: 7,
+                          borderRadius: 4,
+                          backgroundColor: colors.primary,
+                        }} />
+                        <Text style={{
+                          flex: 1,
+                          color: colors.ink,
+                          fontSize: 13,
+                          lineHeight: 21,
+                          textAlign: locale === 'ar' ? 'right' : 'left',
+                        }}>
+                          {feature}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
               )}
 
