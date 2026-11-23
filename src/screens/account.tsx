@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { router } from 'expo-router';
+
 import { View } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { useApp } from '../session-context';
 import { Button, ErrorText, Field, styles, Txt, useText } from '../components/ui';
-import type { Device } from '../core/types';
 import { native } from '../vault';
+import { AccountDashboard } from './account-dashboard';
 export function AccountScreen() {
-  const { api, session, locale, authenticate, logout, recheck, issue, checked } = useApp();
+  const { api, session, authenticate, issue } = useApp();
   const t = useText();
   const [register, setRegister] = useState(false);
   const [email, setEmail] = useState('');
@@ -19,13 +19,10 @@ export function AccountScreen() {
   const [terms, setTerms] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
-  const [notice, setNotice] = useState('');
-  const [devices, setDevices] = useState<Device[]>([]);
   async function run(task: () => Promise<unknown>) {
     if (busy) return;
     setBusy(true);
     setError(null);
-    setNotice('');
     try {
       await task();
     } catch (e) {
@@ -54,7 +51,6 @@ export function AccountScreen() {
     <View style={{ gap: 16 }}>
       <Txt title>{t('حسابك في مروج', 'Your Murwaj account')}</Txt>
       <ErrorText error={error} />
-      {notice && <Txt>{notice}</Txt>}
       {issue && <Txt muted>{issue}</Txt>}
       {!native && (
         <Txt>
@@ -65,128 +61,7 @@ export function AccountScreen() {
         </Txt>
       )}
       {session ? (
-        <>
-          <View style={[styles.card, { backgroundColor: '#FFF0E9', borderColor: '#FFE0D2' }]}> 
-            <Txt muted>{t('الملف الشخصي', 'Your profile')}</Txt>
-            <Txt title>{session.user.name}</Txt>
-            <Txt>{session.user.email}</Txt>
-            <Txt muted>
-              {session.user.email_verified
-                ? t('✓ البريد الإلكتروني موثّق', '✓ Email verified')
-                : t('البريد الإلكتروني بانتظار التوثيق', 'Email verification pending')}
-            </Txt>
-            <View style={{ flexDirection: 'row', gap: 9 }}>
-              <View style={{ flex: 1 }}>
-                <Button secondary label={t('طلباتي', 'My orders')} onPress={() => router.navigate('/orders')} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Button secondary label={t('السلة', 'Basket')} onPress={() => router.navigate('/cart')} />
-              </View>
-            </View>
-            <View style={{ flexDirection: 'row', gap: 9 }}>
-              <View style={{ flex: 1 }}>
-                <Button secondary label={t('المتاجر', 'Stores')} onPress={() => router.navigate('/stores')} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Button secondary disabled={busy} label={t('تحديث الحساب', 'Refresh account')} onPress={() => void run(recheck)} />
-              </View>
-            </View>
-            {!checked && (
-              <Txt muted>
-                {t('تحقق من الاتصال قبل عمليات الحساب.', 'Verify the session before account actions.')}
-              </Txt>
-            )}
-          </View>
-          {!session.user.email_verified && (
-            <>
-              <Button
-                disabled={busy || !checked}
-                label={t('إعادة إرسال رسالة التحقق', 'Resend verification email')}
-                onPress={() =>
-                  void run(async () => {
-                    await api.request(
-                      '/auth/email/verification-notification',
-                      session.token,
-                      locale,
-                      { method: 'POST' },
-                    );
-                    setNotice(
-                      t(
-                        'افتح رسالة التحقق وأكملها في الموقع، ثم حدّث الحساب.',
-                        'Open the verification email, complete the website flow, then refresh your account.',
-                      ),
-                    );
-                  })
-                }
-              />
-              <Button
-                label={t('فتح الموقع لإكمال التحقق', 'Open website to verify')}
-                secondary
-                onPress={() => void run(() => website('/login'))}
-              />
-            </>
-          )}
-          <Button
-            disabled={busy || !checked}
-            secondary
-            label={t('الأجهزة المتصلة', 'Connected devices')}
-            onPress={() =>
-              void run(async () => {
-                const r = await api.request<{ data: Device[] }>(
-                  '/auth/devices',
-                  session.token,
-                  locale,
-                );
-                setDevices(r.data);
-              })
-            }
-          />
-          {devices.map((d) => (
-            <View style={styles.card} key={d.id}>
-              <Txt>
-                {d.device_name} {d.current ? t('(هذا الجهاز)', '(this device)') : ''}
-              </Txt>
-              <Txt muted>{d.last_used_at ?? d.created_at}</Txt>
-              {!d.current && (
-                <Button
-                  label={t('إلغاء وصول الجهاز', 'Revoke device')}
-                  secondary
-                  disabled={busy}
-                  onPress={() =>
-                    void run(async () => {
-                      await api.request(`/auth/devices/${d.id}`, session.token, locale, {
-                        method: 'DELETE',
-                      });
-                      setDevices((x) => x.filter((v) => v.id !== d.id));
-                    })
-                  }
-                />
-              )}
-            </View>
-          ))}
-          <View style={styles.card}>
-            <Txt title>{t('المساعدة والسياسات', 'Help and policies')}</Txt>
-            <View style={{ flexDirection: 'row', gap: 9 }}>
-              <View style={{ flex: 1 }}>
-                <Button secondary label={t('الشروط', 'Terms')} onPress={() => void run(() => website('/terms-of-service'))} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Button secondary label={t('الخصوصية', 'Privacy')} onPress={() => void run(() => website('/privacy-policy'))} />
-              </View>
-            </View>
-          </View>
-          <Button
-            disabled={busy}
-            label={t('تسجيل الخروج', 'Sign out')}
-            onPress={() => void run(logout)}
-          />
-          <Txt muted>
-            {t(
-              'الخروج يلغي رمز هذا الجهاز فقط. محاولات الدفع المحفوظة تبقى لاستعادتها عند الدخول للحساب نفسه.',
-              'Sign out revokes this device token. Saved checkout recovery remains available when the same account signs in again.',
-            )}
-          </Txt>
-        </>
+        <AccountDashboard />
       ) : (
         <>
           {register && (
