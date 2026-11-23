@@ -1,7 +1,7 @@
 import { usePublicQuery } from '../use-public-query';
 import { resolveMediaUrl } from '../core/api';
 import React, { useRef, useState } from 'react';
-import { FlatList, Image, Pressable, ScrollView, Share, Text, View } from 'react-native';
+import { FlatList, Image, Modal, PanResponder, Pressable, ScrollView, Share, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useApp } from '../session-context';
@@ -346,7 +346,12 @@ export function Catalog({
                 ? verifiedOnly
                   ? t('لا توجد متاجر موثّقة متاحة حاليًا', 'No verified stores available right now')
                   : t('لا توجد متاجر مطابقة', 'No matching stores')
-                : t('لا توجد نتائج حاليًا', 'No results found')}
+                : categoryId && !q && !inStockOnly
+                  ? t(
+                      'لا توجد منتجات منشورة ضمن هذه الفئة حاليًا',
+                      'There are no published products in this category right now.',
+                    )
+                  : t('لا توجد نتائج حاليًا', 'No results found')}
             </Txt>
             <Txt muted>
               {shops
@@ -359,10 +364,15 @@ export function Catalog({
                       'جرّب البحث باسم متجر آخر أو امسح عبارة البحث.',
                       'Try another store name or clear your search.',
                     )
-                : t(
-                    'جرّب كلمة بحث أخرى أو امسح البحث لعرض المنتجات المتاحة.',
-                    'Try another search term or clear the search to see available items.',
-                  )}
+                : categoryId && !q && !inStockOnly
+                  ? t(
+                      'يمكنك استكشاف فئات أخرى أو العودة لاحقًا للاطلاع على المنتجات الجديدة.',
+                      'Explore other categories or check back later for new products.',
+                    )
+                  : t(
+                      'جرّب كلمة بحث أخرى أو امسح البحث لعرض المنتجات المتاحة.',
+                      'Try another search term or clear the search to see available items.',
+                    )}
             </Txt>
             {!!q && (
               <Button
@@ -614,7 +624,9 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
   const [uncertain, setUncertain] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [activeImage, setActiveImage] = useState(0);
+  const [galleryVisible, setGalleryVisible] = useState(false);
   const [failedImageUri, setFailedImageUri] = useState<string | null>(null);
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const addLock = useRef(false);
 
   const gallery = product
@@ -623,6 +635,24 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
         .filter((uri): uri is string => Boolean(uri))
     : [];
   const selectedImage = gallery[activeImage] ?? resolveMediaUrl(product?.image_url, api.origin);
+
+  const galleryPanResponder = React.useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_, gesture) =>
+          gallery.length > 1 &&
+          Math.abs(gesture.dx) > 12 &&
+          Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.2,
+        onPanResponderRelease: (_, gesture) => {
+          if (gesture.dx <= -45) {
+            setActiveImage((current) => Math.min(gallery.length - 1, current + 1));
+          } else if (gesture.dx >= 45) {
+            setActiveImage((current) => Math.max(0, current - 1));
+          }
+        },
+      }),
+    [gallery.length],
+  );
 
   async function add() {
     if (!session) {
@@ -667,7 +697,7 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 22 }}>
-        <View style={{ height: 415, backgroundColor: '#F5D2C2' }}>
+        <View style={{ height: 415, backgroundColor: '#F5D2C2' }} {...galleryPanResponder.panHandlers}>
           {selectedImage && failedImageUri !== selectedImage ? (
             <Image
               source={{ uri: selectedImage }}
@@ -690,9 +720,9 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
             </Pressable>
           </View>
           {gallery.length > 1 && (
-            <View style={{ position: 'absolute', right: 13, top: 76, gap: 8 }}>
+            <View style={{ position: 'absolute', left: locale === 'ar' ? 13 : undefined, right: locale === 'ar' ? undefined : 13, top: 76, gap: 8 }}>
               {gallery.slice(0, 4).map((uri, index) => (
-                <Pressable key={`${uri}-${index}`} accessibilityRole="button" accessibilityLabel={t(`الصورة ${index + 1}`, `Image ${index + 1}`)} onPress={() => setActiveImage(index)} style={{ width: 52, height: 61, borderRadius: 11, borderWidth: activeImage === index ? 2 : 1, borderColor: activeImage === index ? colors.primary : '#FFFFFF', overflow: 'hidden', backgroundColor: '#FFFFFF' }}>
+                <Pressable key={`${uri}-${index}`} accessibilityRole="button" accessibilityState={{ selected: activeImage === index }} accessibilityLabel={t(`الصورة ${index + 1}`, `Image ${index + 1}`)} onPress={() => setActiveImage(index)} style={{ width: 52, height: 61, borderRadius: 11, borderWidth: activeImage === index ? 2 : 1, borderColor: activeImage === index ? colors.primary : '#FFFFFF', overflow: 'hidden', backgroundColor: '#FFFFFF' }}>
                   {failedImageUri === uri ? (
                     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FAF3EE' }}>
                       <Text style={{ color: colors.primary, fontSize: 22, fontWeight: '900' }}>م</Text>
@@ -709,6 +739,53 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
               )}
             </View>
           )}
+          {gallery.length > 1 && (
+            <View
+              accessibilityLabel={t(
+                `الصورة ${activeImage + 1} من ${gallery.length}`,
+                `Image ${activeImage + 1} of ${gallery.length}`,
+              )}
+              style={{
+                position: 'absolute',
+                bottom: 14,
+                left: locale === 'ar' ? undefined : 16,
+                right: locale === 'ar' ? 16 : undefined,
+                paddingHorizontal: 11,
+                paddingVertical: 7,
+                borderRadius: 20,
+                backgroundColor: 'rgba(255,255,255,0.94)',
+                borderWidth: 1,
+                borderColor: 'rgba(0,0,0,0.05)',
+              }}
+            >
+              <Text style={{ color: colors.ink, fontSize: 12, fontWeight: '800' }}>
+                {activeImage + 1} / {gallery.length}
+              </Text>
+            </View>
+          )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('عرض الصور بملء الشاشة', 'View images full screen')}
+            onPress={() => setGalleryVisible(true)}
+            style={{
+              position: 'absolute',
+              bottom: 14,
+              left: locale === 'ar' ? 13 : undefined,
+              right: locale === 'ar' ? undefined : 13,
+              width: 42,
+              height: 42,
+              borderRadius: 21,
+              backgroundColor: 'rgba(255,255,255,0.96)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <SymbolView
+              name={{ ios: 'arrow.up.left.and.arrow.down.right', android: 'fullscreen', web: 'fullscreen' }}
+              tintColor={colors.ink}
+              size={19}
+            />
+          </Pressable>
         </View>
 
         <View style={{ marginTop: -24, paddingHorizontal: 22, paddingTop: 23, paddingBottom: 26, borderTopLeftRadius: 27, borderTopRightRadius: 27, backgroundColor: colors.white, gap: 15 }}>
@@ -719,24 +796,143 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
             <>
               <View style={{ gap: 7 }}>
                 <Txt title>{locale === 'ar' ? product.title_ar || product.title : product.title}</Txt>
-                <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-                  <Text style={{ color: colors.primary, fontSize: 23, fontWeight: '900' }}>{product.price} {product.currency}</Text>
-                  {typeof product.rating === 'number' && (
-                    <Text style={{ color: '#B96B22', fontSize: 13, fontWeight: '800' }}>★ {product.rating.toFixed(1)}</Text>
-                  )}
+                <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                  <Text style={{ color: colors.primary, fontSize: 25, fontWeight: '900' }}>{product.price} {product.currency}</Text>
+
+                  <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+                    {typeof product.rating === 'number' && (
+                      <View style={{ paddingHorizontal: 10, paddingVertical: 7, borderRadius: 20, backgroundColor: '#FFF5E8', borderWidth: 1, borderColor: '#F5E3C8' }}>
+                        <Text style={{ color: '#A76518', fontSize: 12, fontWeight: '800' }}>★ {product.rating.toFixed(1)}</Text>
+                      </View>
+                    )}
+
+                    <View style={{ paddingHorizontal: 10, paddingVertical: 7, borderRadius: 20, backgroundColor: product.quantity > 0 ? '#EDF7F0' : '#FFF0ED', borderWidth: 1, borderColor: product.quantity > 0 ? '#D8EBDD' : '#F5D9D3' }}>
+                      <Text style={{ color: product.quantity > 0 ? '#287344' : '#B54735', fontSize: 11, fontWeight: '800' }}>
+                        {product.quantity > 0 ? t('متوفر', 'In stock') : t('نفد المخزون', 'Out of stock')}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               </View>
 
-              {!!product.description && <Txt>{product.description}</Txt>}
+              {!!product.description && (
+                <View style={{ gap: 7 }}>
+                  <Text
+                    numberOfLines={descriptionExpanded ? undefined : 4}
+                    style={{
+                      color: colors.ink,
+                      fontSize: 14,
+                      lineHeight: 23,
+                      fontWeight: '500',
+                      textAlign: locale === 'ar' ? 'right' : 'left',
+                    }}
+                  >
+                    {product.description}
+                  </Text>
+
+                  {product.description.length > 180 && (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityState={{ expanded: descriptionExpanded }}
+                      onPress={() => setDescriptionExpanded((value) => !value)}
+                      style={{
+                        alignSelf: locale === 'ar' ? 'flex-end' : 'flex-start',
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '800' }}>
+                        {descriptionExpanded
+                          ? t('عرض أقل', 'Show less')
+                          : t('قراءة المزيد', 'Read more')}
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
               {!!product.shop?.name && (
-                <Pressable accessibilityRole="button" onPress={() => nav.shop(product.shop!.slug)} style={{ alignSelf: locale === 'ar' ? 'flex-end' : 'flex-start', backgroundColor: colors.primarySoft, borderRadius: 20, paddingHorizontal: 13, paddingVertical: 8 }}>
-                  <Text style={{ color: colors.primary, fontWeight: '800' }}>{product.shop.name}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t(`زيارة متجر ${product.shop.name}`, `Visit ${product.shop.name} store`)}
+                  onPress={() => nav.shop(product.shop!.slug)}
+                  style={{
+                    flexDirection: locale === 'ar' ? 'row-reverse' : 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: 14,
+                    borderRadius: 18,
+                    borderWidth: 1,
+                    borderColor: colors.line,
+                    backgroundColor: colors.paper,
+                  }}
+                >
+                  <View style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 14,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: colors.primarySoft,
+                  }}>
+                    <SymbolView
+                      name={{ ios: 'storefront', android: 'storefront', web: 'storefront' }}
+                      tintColor={colors.primary}
+                      size={21}
+                    />
+                  </View>
+                  <View style={{ flex: 1, gap: 4, alignItems: locale === 'ar' ? 'flex-end' : 'flex-start' }}>
+                    <Text style={{ color: colors.muted, fontSize: 11, fontWeight: '700' }}>
+                      {t('المتجر', 'STORE')}
+                    </Text>
+                    <Text style={{ color: colors.ink, fontSize: 14, fontWeight: '900' }}>
+                      {product.shop.name}
+                    </Text>
+                    <Text style={{ color: colors.primary, fontSize: 11, fontWeight: '700' }}>
+                      {t('زيارة المتجر ومشاهدة منتجاته', 'Visit store and explore products')}
+                    </Text>
+                  </View>
                 </Pressable>
               )}
               {!!product.features?.length && (
-                <View style={{ gap: 7 }}>
+                <View style={{ gap: 10 }}>
                   <Txt title>{t('تفاصيل المنتج', 'Product details')}</Txt>
-                  {product.features.map((feature, index) => <Txt muted key={`${index}-${feature}`}>• {feature}</Txt>)}
+                  <View style={{
+                    borderWidth: 1,
+                    borderColor: colors.line,
+                    borderRadius: 16,
+                    overflow: 'hidden',
+                    backgroundColor: colors.white,
+                  }}>
+                    {product.features.map((feature, index) => (
+                      <View
+                        key={`${index}-${feature}`}
+                        style={{
+                          flexDirection: locale === 'ar' ? 'row-reverse' : 'row',
+                          alignItems: 'center',
+                          gap: 11,
+                          paddingHorizontal: 14,
+                          paddingVertical: 13,
+                          borderBottomWidth: index < product.features!.length - 1 ? 1 : 0,
+                          borderBottomColor: colors.line,
+                        }}
+                      >
+                        <View style={{
+                          width: 7,
+                          height: 7,
+                          borderRadius: 4,
+                          backgroundColor: colors.primary,
+                        }} />
+                        <Text style={{
+                          flex: 1,
+                          color: colors.ink,
+                          fontSize: 13,
+                          lineHeight: 21,
+                          textAlign: locale === 'ar' ? 'right' : 'left',
+                        }}>
+                          {feature}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
               )}
 
@@ -776,8 +972,185 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
           {uncertain && <Text style={{ color: colors.muted, fontSize: 11, textAlign: 'center', marginTop: 5 }}>{t('تحقق من السلة قبل إعادة المحاولة؛ قد تكون الإضافة تمت.', 'Check the basket before retrying; the item may already have been added.')}</Text>}
         </View>
       )}
+      <Modal
+        visible={galleryVisible}
+        animationType="fade"
+        onRequestClose={() => setGalleryVisible(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: '#090909' }}>
+          <View
+            style={{
+              paddingTop: 18,
+              paddingHorizontal: 18,
+              paddingBottom: 12,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('إغلاق المعرض', 'Close gallery')}
+              onPress={() => setGalleryVisible(false)}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 22,
+                backgroundColor: 'rgba(255,255,255,0.14)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <SymbolView
+                name={{ ios: 'xmark', android: 'close', web: 'close' }}
+                tintColor="#FFFFFF"
+                size={21}
+              />
+            </Pressable>
+
+            <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '800' }}>
+              {gallery.length ? `${activeImage + 1} / ${gallery.length}` : '1 / 1'}
+            </Text>
+            <View style={{ width: 44 }} />
+          </View>
+
+          <View
+            style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}
+            {...galleryPanResponder.panHandlers}
+          >
+            {selectedImage && failedImageUri !== selectedImage ? (
+              <Image
+                source={{ uri: selectedImage }}
+                resizeMode="contain"
+                style={{ width: '100%', height: '100%' }}
+                onError={() => setFailedImageUri(selectedImage)}
+              />
+            ) : (
+              <View
+                style={{
+                  flex: 1,
+                  width: '100%',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#171717',
+                }}
+              >
+                <Text style={{ color: colors.primary, fontSize: 58, fontWeight: '900' }}>م</Text>
+                <Text style={{ color: '#BBBBBB', fontSize: 11, fontWeight: '800', marginTop: 7 }}>
+                  murwaj.com
+                </Text>
+              </View>
+            )}
+
+            {gallery.length > 1 && (
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('الصورة السابقة', 'Previous image')}
+                  accessibilityState={{ disabled: activeImage === 0 }}
+                  disabled={activeImage === 0}
+                  onPress={() => setActiveImage((current) => Math.max(0, current - 1))}
+                  style={{
+                    position: 'absolute',
+                    left: 14,
+                    top: '46%',
+                    width: 46,
+                    height: 46,
+                    borderRadius: 23,
+                    backgroundColor: 'rgba(255,255,255,0.16)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: activeImage === 0 ? 0.35 : 1,
+                  }}
+                >
+                  <SymbolView
+                    name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }}
+                    tintColor="#FFFFFF"
+                    size={21}
+                  />
+                </Pressable>
+
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={t('الصورة التالية', 'Next image')}
+                  accessibilityState={{ disabled: activeImage >= gallery.length - 1 }}
+                  disabled={activeImage >= gallery.length - 1}
+                  onPress={() =>
+                    setActiveImage((current) => Math.min(gallery.length - 1, current + 1))
+                  }
+                  style={{
+                    position: 'absolute',
+                    right: 14,
+                    top: '46%',
+                    width: 46,
+                    height: 46,
+                    borderRadius: 23,
+                    backgroundColor: 'rgba(255,255,255,0.16)',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: activeImage >= gallery.length - 1 ? 0.35 : 1,
+                  }}
+                >
+                  <SymbolView
+                    name={{ ios: 'chevron.right', android: 'arrow_forward', web: 'arrow_forward' }}
+                    tintColor="#FFFFFF"
+                    size={21}
+                  />
+                </Pressable>
+              </>
+            )}
+          </View>
+
+          {gallery.length > 1 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{
+                gap: 10,
+                paddingHorizontal: 18,
+                paddingTop: 12,
+                paddingBottom: 26,
+              }}
+            >
+              {gallery.map((uri, index) => (
+                <Pressable
+                  key={`${uri}-${index}`}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: activeImage === index }}
+                  accessibilityLabel={t(`الصورة ${index + 1}`, `Image ${index + 1}`)}
+                  onPress={() => setActiveImage(index)}
+                  style={{
+                    width: 62,
+                    height: 72,
+                    borderRadius: 11,
+                    borderWidth: activeImage === index ? 2 : 1,
+                    borderColor: activeImage === index ? colors.primary : '#555555',
+                    overflow: 'hidden',
+                    backgroundColor: '#252525',
+                  }}
+                >
+                  {failedImageUri === uri ? (
+                    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: colors.primary, fontSize: 22, fontWeight: '900' }}>م</Text>
+                    </View>
+                  ) : (
+                    <Image
+                      source={{ uri }}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="cover"
+                      onError={() => setFailedImageUri(uri)}
+                    />
+                  )}
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+      </Modal>
     </View>
   );
+
+
 }
 export function ShopScreen({ slug, nav }: { slug: string; nav: Nav }) {
   const { api, locale } = useApp();
