@@ -56,7 +56,10 @@ export type User = {
   id: number;
   name: string;
   email: string;
+  phone?: string | null;
   email_verified: boolean;
+  phone_verified?: boolean;
+  profile_photo_url?: string | null;
   two_factor_enabled: boolean;
 };
 export type AuthReply = {
