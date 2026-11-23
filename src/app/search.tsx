@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
-import { Catalog } from '../../screens/catalog';
-import { nav } from '../../navigation';
-import { useApp } from '../../session-context';
-import { colors, useText } from '../../components/ui';
+import { Catalog } from '../screens/catalog';
+import { nav } from '../navigation';
+import { useApp } from '../session-context';
+import { colors, useText } from '../components/ui';
 
 type SearchMode = 'products' | 'shops';
 

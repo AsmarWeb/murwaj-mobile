@@ -249,44 +249,87 @@ export function CheckoutScreen({
         </>
       ) : ready && restored && shopId ? (
         <>
-          <Txt muted>
-            {t(
-              'تأكد من العنوان قبل إرسال الطلب. سيُحفظ كما هو لاستعادة الدفع عند انقطاع الاتصال.',
-              'Check the address before submitting. It is saved exactly for payment recovery.',
-            )}
-          </Txt>
-          {fields.map(([key, ar, en, max]) => (
-            <Field
-              key={key}
-              label={t(ar, en)}
-              value={body[key]}
-              maxLength={max}
-              onChangeText={(v) => setBody((x) => ({ ...x, [key]: v }))}
-              keyboardType={key === 'recipient_phone' ? 'phone-pad' : 'default'}
-            />
-          ))}
-          <Txt muted>{t('الإمارة', 'Emirate')}</Txt>
-          <View style={styles.row}>
-            {emirates.map(([id, ar, en]) => (
-              <Button
-                key={id}
-                secondary={body.emirate !== id}
+
+          <View style={[styles.card, { gap: 12 }]}>
+            <Txt title>{t('بيانات المستلم', 'Recipient details')}</Txt>
+            <Txt muted>
+              {t(
+                'أدخل بيانات الشخص الذي سيستلم الطلب.',
+                'Enter the details of the person receiving the order.',
+              )}
+            </Txt>
+
+            {fields.slice(0, 2).map(([key, ar, en, max]) => (
+              <Field
+                key={key}
                 label={t(ar, en)}
-                onPress={() => setBody((x) => ({ ...x, emirate: id }))}
+                value={body[key]}
+                maxLength={max}
+                onChangeText={(v) => setBody((x) => ({ ...x, [key]: v }))}
+                keyboardType={key === 'recipient_phone' ? 'phone-pad' : 'default'}
               />
             ))}
           </View>
-          <Button
-            disabled={
-              busy ||
-              !checked ||
-              !session?.user.email_verified ||
-              inExpoGo ||
-              fields.some(([k]) => k !== 'unit' && !body[k].trim())
-            }
-            label={t('إنشاء طلب الدفع', 'Create checkout')}
-            onPress={() => void run(() => journal.start({ ...body, shop_id: shopId }))}
-          />
+
+          <View style={[styles.card, { gap: 12 }]}>
+            <Txt title>{t('عنوان التوصيل', 'Delivery address')}</Txt>
+            <Txt muted>
+              {t(
+                'أدخل العنوان بالتفصيل لتسهيل توصيل طلبك.',
+                'Enter a detailed address to help deliver your order.',
+              )}
+            </Txt>
+
+            {fields.slice(2).map(([key, ar, en, max]) => (
+              <Field
+                key={key}
+                label={t(ar, en)}
+                value={body[key]}
+                maxLength={max}
+                onChangeText={(v) => setBody((x) => ({ ...x, [key]: v }))}
+                keyboardType="default"
+              />
+            ))}
+
+            <View style={{ gap: 9 }}>
+              <Txt title>{t('الإمارة', 'Emirate')}</Txt>
+              <Txt muted>
+                {t('اختر الإمارة التي سيتم توصيل الطلب إليها.', 'Select the emirate for delivery.')}
+              </Txt>
+              <View style={styles.row}>
+                {emirates.map(([id, ar, en]) => (
+                  <Button
+                    key={id}
+                    secondary={body.emirate !== id}
+                    label={t(ar, en)}
+                    onPress={() => setBody((x) => ({ ...x, emirate: id }))}
+                  />
+                ))}
+              </View>
+            </View>
+          </View>
+
+          <View style={[styles.card, { gap: 12 }]}>
+            <Txt title>{t('مراجعة وإتمام الدفع', 'Review and checkout')}</Txt>
+            <Txt muted>
+              {t(
+                'ستُحفظ بيانات العنوان لاستعادة محاولة الدفع الأصلية عند انقطاع الاتصال. لا تغلق المحاولة أو تبدأ دفعًا آخر قبل التحقق من حالتها.',
+                'Your address is saved to recover the original checkout if the connection drops. Do not replace the attempt before checking its status.',
+              )}
+            </Txt>
+            <Button
+              disabled={
+                busy ||
+                !checked ||
+                !session?.user.email_verified ||
+                inExpoGo ||
+                fields.some(([k]) => k !== 'unit' && !body[k].trim())
+              }
+              label={t('إنشاء طلب الدفع', 'Create checkout')}
+              onPress={() => void run(() => journal.start({ ...body, shop_id: shopId }))}
+            />
+          </View>
+
         </>
       ) : ready && restored ? (
         <Txt muted>
