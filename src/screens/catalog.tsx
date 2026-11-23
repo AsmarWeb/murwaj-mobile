@@ -33,6 +33,7 @@ export function Catalog({
   nav,
   shops = false,
   shopSlug,
+  store,
   homeContent,
   searchOnly = false,
   categoryId,
@@ -41,6 +42,7 @@ export function Catalog({
   nav: Nav;
   shops?: boolean;
   shopSlug?: string;
+  store?: Shop;
   homeContent?: React.ReactNode;
   searchOnly?: boolean;
   categoryId?: string;
@@ -51,6 +53,8 @@ export function Catalog({
   const [draft, setDraft] = useState('');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<'newest' | 'price_asc' | 'price_desc'>('newest');
+  const [inStockOnly, setInStockOnly] = useState(false);
 
   const columns = shops ? 1 : 2;
   const path = shopSlug
@@ -65,7 +69,7 @@ export function Catalog({
     busy,
     retry,
   } = usePublicQuery<Page<Product | Shop>>(
-    `${path}?per_page=12&page=${page}&q=${segment(q)}${categoryId ? `&category_id=${segment(categoryId)}` : ''}${sectionId ? `&section_id=${segment(sectionId)}` : ''}`,
+    `${path}?per_page=12&page=${page}&q=${segment(q)}&sort=${shopSlug ? sort : 'newest'}${shopSlug && inStockOnly ? '&in_stock=1' : ''}${categoryId ? `&category_id=${segment(categoryId)}` : ''}${sectionId ? `&section_id=${segment(sectionId)}` : ''}`,
   );
 
   function search() {
@@ -94,6 +98,9 @@ export function Catalog({
       ItemSeparatorComponent={() => <View style={{ height: 13 }} />}
       ListHeaderComponent={
         <View style={{ gap: 19, marginBottom: 13 }}>
+          {shopSlug && store && (
+            <StoreProductsHeader store={store} productCount={result?.meta.total ?? 0} />
+          )}
           {!shopSlug && !shops && !searchOnly && (
             <View
               style={[
@@ -168,14 +175,16 @@ export function Catalog({
 
             <Field
               label={
-                shopSlug || shops
+                shops
                   ? t('ابحث عن متجر', 'Search stores')
                   : t('ابحث عن منتج', 'Search products')
               }
               placeholder={
-                shopSlug || shops
+                shops
                   ? t('اسم المتجر...', 'Store name...')
-                  : t('ما الذي تبحث عنه؟', 'What are you looking for?')
+                  : shopSlug
+                    ? t('ابحث في منتجات هذا المتجر...', 'Search this store’s products...')
+                    : t('ما الذي تبحث عنه؟', 'What are you looking for?')
               }
               value={draft}
               onChangeText={setDraft}
@@ -201,6 +210,41 @@ export function Catalog({
               )}
             </View>
           </View>
+
+          {shopSlug && (
+            <View style={{ gap: 10 }}>
+              <Txt muted>{t('ترتيب وتصفية المنتجات', 'Sort and filter products')}</Txt>
+              <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', flexWrap: 'wrap', gap: 8 }}>
+                {([
+                  { value: 'newest' as const, ar: 'الأحدث', en: 'Newest' },
+                  { value: 'price_asc' as const, ar: 'السعر: الأقل', en: 'Price: low to high' },
+                  { value: 'price_desc' as const, ar: 'السعر: الأعلى', en: 'Price: high to low' },
+                ]).map((option) => (
+                  <Pressable
+                    key={option.value}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: sort === option.value }}
+                    onPress={() => { setSort(option.value); setPage(1); }}
+                    style={{ paddingHorizontal: 12, minHeight: 36, borderRadius: 20, borderWidth: 1, borderColor: sort === option.value ? colors.primary : colors.line, backgroundColor: sort === option.value ? colors.primarySoft : colors.white, justifyContent: 'center' }}
+                  >
+                    <Text style={{ color: sort === option.value ? colors.primary : colors.ink, fontSize: 11, fontWeight: '800' }}>
+                      {t(option.ar, option.en)}
+                    </Text>
+                  </Pressable>
+                ))}
+                <Pressable
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: inStockOnly }}
+                  onPress={() => { setInStockOnly((value) => !value); setPage(1); }}
+                  style={{ paddingHorizontal: 12, minHeight: 36, borderRadius: 20, borderWidth: 1, borderColor: inStockOnly ? colors.primary : colors.line, backgroundColor: inStockOnly ? colors.primarySoft : colors.white, justifyContent: 'center' }}
+                >
+                  <Text style={{ color: inStockOnly ? colors.primary : colors.ink, fontSize: 11, fontWeight: '800' }}>
+                    {inStockOnly ? '✓ ' : ''}{t('المتوفر فقط', 'In stock only')}
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
 
           {!shopSlug && !shops && homeContent}
 
@@ -229,36 +273,10 @@ export function Catalog({
       }
       renderItem={({ item }) =>
         shops ? (
-          <View style={[styles.card, { gap: 11 }]}>
-            <Photo
-              uri={(item as Shop).logo_url || (item as Shop).banner_url}
-              height={145}
-            />
-
-            <Txt title>
-              {locale === 'ar'
-                ? (item as Shop).name_ar || (item as Shop).name
-                : (item as Shop).name}
-            </Txt>
-
-            <Txt muted>
-              {(item as Shop).verified
-                ? t('متجر موثّق', 'Verified store')
-                : t('متجر مستقل', 'Independent store')}
-            </Txt>
-
-            {!!(item as Shop).description && (
-              <Txt>
-                {(item as Shop).description}
-              </Txt>
-            )}
-
-            <Button
-              label={t('زيارة المتجر', 'Visit store')}
-              onPress={() => nav.shop(item.slug)}
-              secondary
-            />
-          </View>
+          <StoreDiscoveryCard
+            shop={item as Shop}
+            onPress={() => nav.shop((item as Shop).slug)}
+          />
         ) : (
           <ProductCard
             product={item as Product}
@@ -359,7 +377,76 @@ function TextOnDark({
   );
 }
 
-export function ProductCard({
+export function StoreProductsScreen({
+  slug,
+  nav,
+}: {
+  slug: string;
+  nav: Nav;
+}) {
+  const { data, error, retry } = usePublicQuery<{ data: Shop }>(`/shops/${segment(slug)}`);
+  const store = data?.data;
+
+  return (
+    <View style={{ flex:  1, backgroundColor: colors.paper }}>
+      <Catalog key={slug} nav={nav} shopSlug={slug} store={store} />
+      {!!error && (
+        <View style={{ paddingHorizontal: 18, paddingBottom: 12, gap: 8 }}>
+          <ErrorText error={error} />
+          <Button label="Retry store details" onPress={retry} secondary />
+        </View>
+      )}
+    </View>
+  );
+}
+
+function StoreProductsHeader({
+  store,
+  productCount,
+}: {
+  store: Shop;
+  productCount: number;
+}) {
+  const { locale, api } = useApp();
+  const t = useText();
+  const title = locale === 'ar' ? store.name_ar || store.name : store.name;
+  const logoUri = resolveMediaUrl(store.logo_url, api.origin);
+
+  return (
+    <View style={[styles.card, { padding: 12, borderRadius: 23, gap: 11 }]}>
+      <Photo uri={store.banner_url || store.logo_url} height={142} />
+      <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', gap: 11 }}>
+        {logoUri ? (
+          <Image source={{ uri: logoUri }} style={{ width: 62, height: 62, borderRadius: 17, backgroundColor: colors.white }} resizeMode="contain" />
+        ) : (
+          <View style={{ width: 62, height: 62, borderRadius: 17, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: colors.primary, fontSize: 26, fontWeight: '900' }}>م</Text>
+          </View>
+        )}
+        <View style={{ flex: 1, gap: 4, alignItems: locale === 'ar' ? 'flex-end' : 'flex-start' }}>
+          <Txt title>{title}</Txt>
+          <Text style={{ color: store.verified ? colors.primary : colors.muted, fontSize: 11, fontWeight: '800' }}>
+            {store.verified ? t('متجر موثّق', 'Verified store') : t('متجر على مُروَّج', 'Murwaj store')}
+          </Text>
+        </View>
+      </View>
+      {!!store.description && (
+        <Text numberOfLines={3} style={{ color: colors.muted, fontSize: 12, lineHeight: 19, textAlign: locale === 'ar' ? 'right' : 'left', writingDirection: locale === 'ar' ? 'rtl' : 'ltr' }}>
+          {store.description}
+        </Text>
+      )}
+      <View style={{ height: 1, backgroundColor: colors.line }} />
+      <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Txt muted>{t('منتجات المتجر', 'Store products')}</Txt>
+        <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '900' }}>
+          {t(`${productCount} منتج`, `${productCount} products`)}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function ProductCard({
   product: p,
   onPress,
   compact = false,
@@ -619,25 +706,232 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
   );
 }
 export function ShopScreen({ slug, nav }: { slug: string; nav: Nav }) {
-  const { locale } = useApp();
+  const { api, locale } = useApp();
   const t = useText();
-  const { data: payload, error, retry } = usePublicQuery<{ data: Shop }>(`/shops/${segment(slug)}`);
+  const { data: payload, error, busy, retry } =
+    usePublicQuery<{ data: Shop }>(`/shops/${segment(slug)}`);
   const shop = payload?.data;
+  const [failedBanner, setFailedBanner] = useState<string | null>(null);
+  const [failedLogo, setFailedLogo] = useState<string | null>(null);
+
+  const bannerUri = resolveMediaUrl(shop?.banner_url, api.origin);
+  const logoUri = resolveMediaUrl(shop?.logo_url, api.origin);
+  const name = shop
+    ? locale === 'ar' ? shop.name_ar || shop.name : shop.name
+    : '';
+  const previewProducts = shop?.listings ?? [];
+
   return (
-    <View style={{ gap: 16 }}>
-      <ErrorText error={error} />
-      {!shop && !error && <Busy />}
-      {!!error && <Button label={t('إعادة المحاولة', 'Retry')} onPress={retry} />}
+    <View style={{ gap: 17 }}>
+      {!!error && <ErrorText error={error} />}
+      {busy && !shop && <Busy />}
+      {!!error && !shop && (
+        <Button label={t('إعادة تحميل المتجر', 'Reload store')} onPress={retry} secondary />
+      )}
+
       {shop && (
         <>
-          <Txt title>{locale === 'ar' ? shop.name_ar || shop.name : shop.name}</Txt>
-          <Txt>{shop.description}</Txt>
-          <Button
-            label={t('جميع منتجات المتجر', 'All store products')}
-            onPress={() => nav.shop(`list:${slug}`)}
-          />
+          <View style={{ borderRadius: 25, overflow: 'hidden', backgroundColor: colors.white, borderWidth: 1, borderColor: colors.line }}>
+            <View style={{ height: 188, backgroundColor: '#F7E9E1' }}>
+              {bannerUri && failedBanner !== bannerUri ? (
+                <Image
+                  source={{ uri: bannerUri }}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="cover"
+                  onError={() => setFailedBanner(bannerUri)}
+                />
+              ) : (
+                <View style={{ flex: 1, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+                  <Text style={{ color: colors.primary, fontSize: 29, fontWeight: '900' }}>murwaj.com</Text>
+                  <Text style={{ color: colors.ink, fontSize: 10, fontWeight: '800', letterSpacing: 1 }}>INDEPENDENT STORE</Text>
+                </View>
+              )}
+            </View>
+
+            <View style={{ paddingHorizontal: 17, paddingBottom: 18, gap: 12 }}>
+              <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: 12, marginTop: -37 }}>
+                <View style={{ width: 82, height: 82, borderRadius: 23, borderWidth: 4, borderColor: colors.white, backgroundColor: colors.white, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+                  {logoUri && failedLogo !== logoUri ? (
+                    <Image
+                      source={{ uri: logoUri }}
+                      style={{ width: '100%', height: '100%' }}
+                      resizeMode="contain"
+                      onError={() => setFailedLogo(logoUri)}
+                    />
+                  ) : (
+                    <Text style={{ color: colors.primary, fontSize: 34, fontWeight: '900' }}>م</Text>
+                  )}
+                </View>
+                <View style={{ flex: 1, paddingBottom: 4, gap: 4, alignItems: locale === 'ar' ? 'flex-end' : 'flex-start' }}>
+                  <Text numberOfLines={2} style={{ color: colors.ink, fontSize: 19, lineHeight: 25, fontWeight: '900', textAlign: locale === 'ar' ? 'right' : 'left' }}>
+                    {name}
+                  </Text>
+                  <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <View style={{ borderRadius: 20, paddingHorizontal: 9, paddingVertical: 5, backgroundColor: shop.verified ? colors.primarySoft : colors.paper }}>
+                      <Text style={{ color: shop.verified ? colors.primary : colors.muted, fontSize: 10, fontWeight: '900' }}>
+                        {shop.verified ? t('متجر موثّق', 'Verified store') : t('متجر مستقل', 'Independent store')}
+                      </Text>
+                    </View>
+                    {typeof shop.rating === 'number' && shop.rating > 0 && (
+                      <Text style={{ color: colors.ink, fontSize: 12, fontWeight: '900' }}>★ {shop.rating.toFixed(1)}</Text>
+                    )}
+                  </View>
+                </View>
+              </View>
+
+              {!!shop.description && (
+                <Text style={{ color: colors.muted, fontSize: 13, lineHeight: 22, textAlign: locale === 'ar' ? 'right' : 'left', writingDirection: locale === 'ar' ? 'rtl' : 'ltr' }}>
+                  {shop.description}
+                </Text>
+              )}
+
+              {!!shop.location && (
+                <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', gap: 7 }}>
+                  <Text style={{ color: colors.primary, fontSize: 15 }}>⌖</Text>
+                  <Text style={{ color: colors.muted, fontSize: 12, flex: 1, textAlign: locale === 'ar' ? 'right' : 'left' }}>
+                    {shop.location}
+                  </Text>
+                </View>
+              )}
+
+              <Button
+                label={t('تصفّح جميع منتجات المتجر', 'Browse all store products')}
+                onPress={() => nav.shop(`list:${slug}`)}
+              />
+            </View>
+          </View>
+
+          <View style={{ gap: 12 }}>
+            <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <Txt title>{t('منتجات المتجر', 'Store products')}</Txt>
+              {!!previewProducts.length && (
+                <Pressable accessibilityRole="button" onPress={() => nav.shop(`list:${slug}`)} hitSlop={8}>
+                  <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '900' }}>{t('عرض الكل', 'See all')} ›</Text>
+                </Pressable>
+              )}
+            </View>
+
+            {previewProducts.length > 0 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 5 }}>
+                {previewProducts.map((product) => (
+                  <View key={product.id} style={{ width: 220 }}>
+                    <ProductCard product={product} onPress={() => nav.product(product.slug)} />
+                  </View>
+                ))}
+              </ScrollView>
+            ) : (
+              <View style={[styles.card, { padding: 18, gap: 7 }]}>
+                <Txt title>{t('المتجر يستعد لإضافة منتجاته', 'This store is preparing its products')}</Txt>
+                <Txt muted>
+                  {t('يمكنك العودة قريبًا لاكتشاف المنتجات الجديدة.', 'Come back soon to discover new products.')}
+                </Txt>
+              </View>
+            )}
+          </View>
         </>
       )}
     </View>
+  );
+}
+
+
+function StoreDiscoveryCard({
+  shop,
+  onPress,
+}: {
+  shop: Shop;
+  onPress: () => void;
+}) {
+  const { api, locale } = useApp();
+  const t = useText();
+  const [bannerFailed, setBannerFailed] = useState(false);
+  const [logoFailed, setLogoFailed] = useState(false);
+  const bannerUri = resolveMediaUrl(shop.banner_url, api.origin);
+  const logoUri = resolveMediaUrl(shop.logo_url, api.origin);
+  const name = locale === 'ar' ? shop.name_ar || shop.name : shop.name;
+  const description = shop.description?.trim();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t(`زيارة متجر ${name}`, `Visit ${name}`)}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.card,
+        {
+          padding: 0,
+          borderRadius: 23,
+          overflow: 'hidden',
+          gap: 0,
+          opacity: pressed ? 0.94 : 1,
+        },
+      ]}
+    >
+      <View style={{ height: 142, backgroundColor: '#F8E8DF', overflow: 'hidden' }}>
+        {bannerUri && !bannerFailed ? (
+          <Image
+            source={{ uri: bannerUri }}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="cover"
+            onError={() => setBannerFailed(true)}
+          />
+        ) : (
+          <View style={{ flex: 1, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: colors.primary, fontSize: 34, fontWeight: '900', letterSpacing: 1 }}>murwaj</Text>
+            <Text style={{ color: colors.ink, fontSize: 10, fontWeight: '700', marginTop: 3 }}>INDEPENDENT STORE</Text>
+          </View>
+        )}
+      </View>
+
+      <View style={{ paddingHorizontal: 15, paddingBottom: 15, gap: 9 }}>
+        <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', gap: 11, marginTop: -31 }}>
+          <View style={{ width: 66, height: 66, borderRadius: 19, borderWidth: 3, borderColor: colors.white, backgroundColor: colors.white, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+            {logoUri && !logoFailed ? (
+              <Image
+                source={{ uri: logoUri }}
+                style={{ width: '100%', height: '100%' }}
+                resizeMode="contain"
+                onError={() => setLogoFailed(true)}
+              />
+            ) : (
+              <Text style={{ color: colors.primary, fontSize: 27, fontWeight: '900' }}>م</Text>
+            )}
+          </View>
+          <View style={{ flex: 1, paddingTop: 25, gap: 4, alignItems: locale === 'ar' ? 'flex-end' : 'flex-start' }}>
+            <Text numberOfLines={1} style={{ color: colors.ink, fontSize: 16, fontWeight: '900', textAlign: locale === 'ar' ? 'right' : 'left' }}>
+              {name}
+            </Text>
+            <Text style={{ color: shop.verified ? colors.primary : colors.muted, fontSize: 11, fontWeight: '800' }}>
+              {shop.verified ? t('متجر موثّق', 'Verified store') : t('متجر مستقل', 'Independent store')}
+            </Text>
+          </View>
+        </View>
+
+        {!!description && (
+          <Text numberOfLines={2} style={{ color: colors.muted, fontSize: 12, lineHeight: 19, textAlign: locale === 'ar' ? 'right' : 'left' }}>
+            {description}
+          </Text>
+        )}
+
+        <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9 }}>
+          {!!shop.location && (
+            <Text numberOfLines={1} style={{ flex: 1, color: colors.muted, fontSize: 11, textAlign: locale === 'ar' ? 'right' : 'left' }}>
+              {shop.location}
+            </Text>
+          )}
+          {typeof shop.rating === 'number' && shop.rating > 0 && (
+            <Text style={{ color: colors.ink, fontSize: 12, fontWeight: '800' }}>
+              ★ {shop.rating.toFixed(1)}
+            </Text>
+          )}
+        </View>
+
+        <View style={{ minHeight: 42, borderRadius: 13, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: colors.primary, fontSize: 13, fontWeight: '900' }}>
+            {t('استكشف المتجر', 'Explore store')} ›
+          </Text>
+        </View>
+      </View>
+    </Pressable>
   );
 }

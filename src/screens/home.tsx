@@ -17,7 +17,6 @@ import {
   Button,
   Busy,
   ErrorText,
-  Photo,
   styles,
   Txt,
   useText,
@@ -50,7 +49,11 @@ export function HomeScreen() {
 
   const sections = data?.data?.sections ?? [];
   const hasPublishedProductRail = sections.some((section) =>
-    ['products_latest', 'products_featured', 'products_selected'].includes(section.type),
+    ['products_latest', 'products_featured', 'products_selected'].includes(section.type) &&
+    (section.items?.length ?? 0) > 0,
+  );
+  const hasVisibleHomeContent = sections.some((section) =>
+    section.type === 'banner' || section.type === 'editorial' || (section.items?.length ?? 0) > 0,
   );
   const hasPublishedBanner = sections.some((section) => section.type === 'banner');
   const products = latestProducts?.data ?? [];
@@ -137,7 +140,7 @@ export function HomeScreen() {
         </View>
       )}
 
-      {!busy && !error && sections.length === 0 && !isWhiteFridaySeason && (
+      {!busy && !error && !hasVisibleHomeContent && !isWhiteFridaySeason && (
         <View style={[styles.card, { alignItems: 'center', paddingVertical: 28 }]}> 
           <View style={{ width: 54, height: 54, borderRadius: 18, backgroundColor: colors.primary, alignItems: 'center', justifyContent: 'center' }}>
             <Text style={{ color: '#FFFFFF', fontSize: 25, fontWeight: '900' }}>م</Text>
@@ -421,7 +424,7 @@ function HomeProductCard({
           <Image
             source={{ uri: imageUri }}
             style={{ width: '100%', height: '100%' }}
-            resizeMode="cover"
+            resizeMode="contain"
             onError={() => setFailedImageUri(imageUri)}
           />
         ) : (
@@ -549,7 +552,12 @@ function HomeSection({ section }: { section: MobileHomeSection }) {
       <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', justifyContent: 'space-between' }}>
         {!!title && <Txt title>{title}</Txt>}
         {(section.type === 'categories' || productSection) && (
-          <Pressable accessibilityRole="button" onPress={() => router.push('/search')} hitSlop={8}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('عرض الكل', 'See all')}
+            onPress={() => router.push(section.type === 'categories' ? '/categories' : '/search')}
+            hitSlop={8}
+          >
             <Txt muted>{t('عرض الكل', 'See all')} ›</Txt>
           </Pressable>
         )}
@@ -577,13 +585,61 @@ function HomeSection({ section }: { section: MobileHomeSection }) {
 
             if (section.type === 'shops_latest' || section.type === 'shops_selected') {
               const shop = item as Shop;
+              const bannerUri = resolveMediaUrl(shop.banner_url, api.origin);
+              const logoUri = resolveMediaUrl(shop.logo_url, api.origin);
+              const shopName = locale === 'ar' ? shop.name_ar || shop.name : shop.name;
+
               return (
-                <View key={key} style={[styles.card, { width: 190, padding: 12, borderRadius: 22 }]}>
-                  <Photo uri={shop.logo_url || shop.banner_url} height={112} />
-                  <Txt title>{locale === 'ar' ? shop.name_ar || shop.name : shop.name}</Txt>
-                  <Txt muted>{shop.verified ? t('متجر موثّق', 'Verified store') : t('متجر مستقل', 'Independent store')}</Txt>
-                  <Button label={t('زيارة المتجر', 'Visit store')} secondary onPress={() => router.push({ pathname: '/store/[slug]', params: { slug: shop.slug } })} />
-                </View>
+                <Pressable
+                  key={key}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(`زيارة متجر ${shopName}`, `Visit ${shopName}`)}
+                  onPress={() => router.push({ pathname: '/store/[slug]', params: { slug: shop.slug } })}
+                  style={({ pressed }) => [
+                    styles.card,
+                    {
+                      width: 226,
+                      padding: 0,
+                      borderRadius: 22,
+                      overflow: 'hidden',
+                      gap: 0,
+                      opacity: pressed ? 0.94 : 1,
+                    },
+                  ]}
+                >
+                  <View style={{ height: 112, backgroundColor: '#F7E9E1' }}>
+                    {bannerUri ? (
+                      <Image source={{ uri: bannerUri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    ) : (
+                      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primarySoft }}>
+                        <Text style={{ color: colors.primary, fontSize: 30, fontWeight: '900' }}>م</Text>
+                      </View>
+                    )}
+                  </View>
+                  <View style={{ paddingHorizontal: 13, paddingBottom: 13, gap: 8 }}>
+                    <View style={{ flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', gap: 10, marginTop: -25 }}>
+                      <View style={{ width: 58, height: 58, borderRadius: 18, overflow: 'hidden', backgroundColor: colors.white, borderWidth: 3, borderColor: colors.white, alignItems: 'center', justifyContent: 'center' }}>
+                        {logoUri ? (
+                          <Image source={{ uri: logoUri }} style={{ width: '100%', height: '100%' }} resizeMode="contain" />
+                        ) : (
+                          <Text style={{ color: colors.primary, fontSize: 24, fontWeight: '900' }}>م</Text>
+                        )}
+                      </View>
+                      <View style={{ flex: 1, paddingTop: 22, alignItems: locale === 'ar' ? 'flex-end' : 'flex-start' }}>
+                        <Text numberOfLines={1} style={{ color: colors.ink, fontSize: 14, fontWeight: '900', textAlign: locale === 'ar' ? 'right' : 'left' }}>{shopName}</Text>
+                        <Text style={{ color: shop.verified ? colors.primary : colors.muted, fontSize: 11, fontWeight: '700' }}>
+                          {shop.verified ? t('متجر موثّق', 'Verified store') : t('متجر مستقل', 'Independent store')}
+                        </Text>
+                      </View>
+                    </View>
+                    <Text numberOfLines={2} style={{ color: colors.muted, fontSize: 11, lineHeight: 17, textAlign: locale === 'ar' ? 'right' : 'left' }}>
+                      {shop.description || t('اكتشف منتجات هذا المتجر', 'Explore this store’s products')}
+                    </Text>
+                    <View style={{ minHeight: 36, borderRadius: 11, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '900' }}>{t('زيارة المتجر', 'Visit store')} ›</Text>
+                    </View>
+                  </View>
+                </Pressable>
               );
             }
 
@@ -596,16 +652,27 @@ function HomeSection({ section }: { section: MobileHomeSection }) {
                   accessibilityRole="button"
                   accessibilityLabel={locale === 'ar' ? category.name_ar || category.name : category.name}
                   onPress={() => router.push({ pathname: '/search', params: { category_id: String(category.id) } })}
-                  style={{ width: 88, alignItems: 'center', gap: 8 }}
+                  style={({ pressed }) => ({
+                    width: 128,
+                    padding: 7,
+                    borderRadius: 20,
+                    backgroundColor: colors.white,
+                    borderWidth: 1,
+                    borderColor: colors.line,
+                    gap: 9,
+                    opacity: pressed ? 0.92 : 1,
+                  })}
                 >
-                  {uri ? (
-                    <Image source={{ uri }} style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: colors.white }} resizeMode="cover" />
-                  ) : (
-                    <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ color: colors.primary, fontSize: 25, fontWeight: '900' }}>م</Text>
-                    </View>
-                  )}
-                  <Text numberOfLines={2} style={{ color: colors.ink, textAlign: 'center', fontSize: 12, fontWeight: '700' }}>
+                  <View style={{ width: '100%', height: 104, borderRadius: 15, overflow: 'hidden', backgroundColor: '#F7F1EC', alignItems: 'center', justifyContent: 'center' }}>
+                    {uri ? (
+                      <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                    ) : (
+                      <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ color: colors.primary, fontSize: 24, fontWeight: '900' }}>م</Text>
+                      </View>
+                    )}
+                  </View>
+                  <Text numberOfLines={2} style={{ minHeight: 34, color: colors.ink, textAlign: 'center', fontSize: 12, lineHeight: 17, fontWeight: '800' }}>
                     {locale === 'ar' ? category.name_ar || category.name : category.name}
                   </Text>
                 </Pressable>
@@ -619,16 +686,27 @@ function HomeSection({ section }: { section: MobileHomeSection }) {
                 key={key}
                 accessibilityRole="button"
                 onPress={() => router.push({ pathname: '/search', params: { section_id: String(catalogSection.id) } })}
-                style={{ width: 88, alignItems: 'center', gap: 8 }}
+                style={({ pressed }) => ({
+                  width: 128,
+                  padding: 7,
+                  borderRadius: 20,
+                  backgroundColor: colors.white,
+                  borderWidth: 1,
+                  borderColor: colors.line,
+                  gap: 9,
+                  opacity: pressed ? 0.92 : 1,
+                })}
               >
-                {uri ? (
-                  <Image source={{ uri }} style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: colors.white }} resizeMode="cover" />
-                ) : (
-                  <View style={{ width: 68, height: 68, borderRadius: 34, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ color: colors.primary, fontSize: 25, fontWeight: '900' }}>م</Text>
-                  </View>
-                )}
-                <Text numberOfLines={2} style={{ color: colors.ink, textAlign: 'center', fontSize: 12, fontWeight: '700' }}>
+                <View style={{ width: '100%', height: 104, borderRadius: 15, overflow: 'hidden', backgroundColor: '#F7F1EC', alignItems: 'center', justifyContent: 'center' }}>
+                  {uri ? (
+                    <Image source={{ uri }} style={{ width: '100%', height: '100%' }} resizeMode="cover" />
+                  ) : (
+                    <View style={{ width: 48, height: 48, borderRadius: 16, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ color: colors.primary, fontSize: 24, fontWeight: '900' }}>م</Text>
+                    </View>
+                  )}
+                </View>
+                <Text numberOfLines={2} style={{ minHeight: 34, color: colors.ink, textAlign: 'center', fontSize: 12, lineHeight: 17, fontWeight: '800' }}>
                   {locale === 'ar' ? catalogSection.name_ar || catalogSection.name : catalogSection.name}
                 </Text>
               </Pressable>
