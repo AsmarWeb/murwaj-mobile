@@ -604,6 +604,26 @@ function ProductCard({
         </Pressable>
       </View>
       {!!error && <ErrorText error={error} />}
+      {uncertain && (
+        <View style={{ gap: 6, paddingTop: 3 }}>
+          <Text style={{ color: colors.muted, fontSize: 11, lineHeight: 17 }}>
+            {t(
+              'تحقق من السلة قبل إعادة المحاولة؛ قد تكون الإضافة تمت.',
+              'Check the basket before retrying; the item may already have been added.',
+            )}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('فتح السلة للتحقق', 'Open basket to check')}
+            onPress={() => router.push('/cart')}
+            style={{ alignSelf: locale === 'ar' ? 'flex-start' : 'flex-end', paddingVertical: 5 }}
+          >
+            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: '800' }}>
+              {t('افتح السلة للتحقق', 'Open basket to check')}
+            </Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
