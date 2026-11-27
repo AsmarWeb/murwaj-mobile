@@ -13,6 +13,7 @@ import * as WebBrowser from 'expo-web-browser';
 
 import { resolveMediaUrl, httpsUrl } from '../core/api';
 import { useApp } from '../session-context';
+import { FavoriteButton } from '../components/favorite-button';
 import { usePublicQuery } from '../use-public-query';
 import {
   Button,
@@ -551,6 +552,15 @@ function HomeProductCard({
             </Text>
           </View>
         )}
+
+        <FavoriteButton
+          product={product}
+          style={{
+            position: 'absolute',
+            top: 9,
+            [locale === 'ar' ? 'right' : 'left']: 9,
+          }}
+        />
 
         {hasRating && (
           <View
