@@ -6,6 +6,7 @@ import { resolveMediaUrl } from '../core/api';
 import { Button, ErrorText, Txt, colors, styles, useText } from '../components/ui';
 import type { Device } from '../core/types';
 import { useApp } from '../session-context';
+import { useFavorites } from '../favorites-context';
 
 function ProfileAvatar({
   uri,
@@ -73,6 +74,7 @@ export function AccountDashboard() {
   } = useApp();
 
   const t = useText();
+  const { favorites } = useFavorites();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [devices, setDevices] = useState<Device[]>([]);
@@ -240,19 +242,25 @@ export function AccountDashboard() {
           <View style={{ flex: 1 }}>
             <Button
               secondary
-              label={t('اكتشف المتاجر', 'Explore stores')}
-              onPress={() => router.navigate('/stores')}
+              label={t(`المفضلة (${favorites.length})`, `Favourites (${favorites.length})`)}
+              onPress={() => router.push('/favorites')}
             />
           </View>
           <View style={{ flex: 1 }}>
             <Button
               secondary
-              label={t('إدارة ملفي الشخصي', 'Manage my profile')}
-              onPress={() => void run(() => openWebsite('/profile'))}
-              disabled={busy}
+              label={t('اكتشف المتاجر', 'Explore stores')}
+              onPress={() => router.navigate('/stores')}
             />
           </View>
         </View>
+
+        <Button
+          secondary
+          label={t('إدارة ملفي الشخصي', 'Manage my profile')}
+          onPress={() => void run(() => openWebsite('/profile'))}
+          disabled={busy}
+        />
       </View>
 
       {/* Contact details */}

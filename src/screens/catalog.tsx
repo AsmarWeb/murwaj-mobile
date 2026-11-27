@@ -5,6 +5,7 @@ import { FlatList, Image, Modal, PanResponder, Pressable, ScrollView, Share, Tex
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useApp } from '../session-context';
+import { FavoriteButton } from '../components/favorite-button';
 import {
   Button,
   Busy,
@@ -578,9 +579,19 @@ function ProductCard({
 
   return (
     <View style={[styles.card, compact && { flex: 1, minWidth: 0, padding: 9, gap: 7, borderRadius: 19 }]}>
-      <Pressable accessibilityRole="button" onPress={onPress}>
-        <Photo uri={p.image_url} height={compact ? 116 : 165} />
-      </Pressable>
+      <View style={{ position: 'relative' }}>
+        <Pressable accessibilityRole="button" onPress={onPress}>
+          <Photo uri={p.image_url} height={compact ? 116 : 165} />
+        </Pressable>
+        <FavoriteButton
+          product={p}
+          style={{
+            position: 'absolute',
+            top: 8,
+            [locale === 'ar' ? 'right' : 'left']: 8,
+          }}
+        />
+      </View>
       <Pressable accessibilityRole="button" onPress={onPress}>
         <Txt title>{locale === 'ar' ? p.title_ar || p.title : p.title}</Txt>
       </Pressable>
@@ -735,9 +746,12 @@ export function ProductScreen({ slug, nav }: { slug: string; nav: Nav }) {
             <Pressable accessibilityRole="button" accessibilityLabel={t('رجوع', 'Go back')} onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs)')} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.94)', alignItems: 'center', justifyContent: 'center' }}>
               <SymbolView name={{ ios: 'chevron.left', android: 'arrow_back', web: 'arrow_back' }} tintColor={colors.ink} size={19} />
             </Pressable>
-            <Pressable accessibilityRole="button" accessibilityLabel={t('مشاركة المنتج', 'Share product')} onPress={() => void shareProduct()} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.94)', alignItems: 'center', justifyContent: 'center' }}>
-              <SymbolView name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }} tintColor={colors.ink} size={19} />
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+              {product ? <FavoriteButton product={product} /> : null}
+              <Pressable accessibilityRole="button" accessibilityLabel={t('مشاركة المنتج', 'Share product')} onPress={() => void shareProduct()} style={{ width: 42, height: 42, borderRadius: 21, backgroundColor: 'rgba(255,255,255,0.94)', alignItems: 'center', justifyContent: 'center' }}>
+                <SymbolView name={{ ios: 'square.and.arrow.up', android: 'share', web: 'share' }} tintColor={colors.ink} size={19} />
+              </Pressable>
+            </View>
           </View>
           {gallery.length > 1 && (
             <View style={{ position: 'absolute', left: locale === 'ar' ? 13 : undefined, right: locale === 'ar' ? undefined : 13, top: 76, gap: 8 }}>
