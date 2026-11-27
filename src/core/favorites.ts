@@ -102,10 +102,13 @@ function uniqueProducts(products: Product[]): Product[] {
 }
 
 export class FavoritesRepository {
-  constructor(
-    private readonly storage: AsyncKeyValueStorage,
-    private readonly key = FAVORITES_STORAGE_KEY,
-  ) {}
+  private readonly storage: AsyncKeyValueStorage;
+  private readonly key: string;
+
+  constructor(storage: AsyncKeyValueStorage, key = FAVORITES_STORAGE_KEY) {
+    this.storage = storage;
+    this.key = key;
+  }
 
   async load(): Promise<Product[]> {
     const raw = await this.storage.getItem(this.key);
