@@ -178,6 +178,7 @@ function Shell() {
           >
             <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
             <Stack.Screen name="search" />
+            <Stack.Screen name="favorites" options={{ headerShown: false }} />
             <Stack.Screen name="product/[slug]" options={{ headerShown: false }} />
 
             <Stack.Screen name="store/[slug]" />
