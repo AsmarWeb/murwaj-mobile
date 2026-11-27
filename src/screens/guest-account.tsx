@@ -5,6 +5,7 @@ import { SymbolView } from 'expo-symbols';
 import * as WebBrowser from 'expo-web-browser';
 
 import { useApp } from '../session-context';
+import { useFavorites } from '../favorites-context';
 import { Button, colors, styles, Txt, useText } from '../components/ui';
 
 type Panel = 'home' | 'settings' | 'support';
@@ -50,6 +51,11 @@ const icons = {
     android: 'shopping_bag',
     web: 'shopping_bag',
   },
+  favorites: {
+    ios: 'heart.fill',
+    android: 'favorite',
+    web: 'favorite',
+  },
   arrow: {
     ios: 'chevron.forward',
     android: 'arrow_forward',
@@ -59,6 +65,7 @@ const icons = {
 
 export function GuestAccountScreen() {
   const { api, locale } = useApp();
+  const { favorites } = useFavorites();
   const t = useText();
   const [panel, setPanel] = useState<Panel>('home');
 
@@ -173,6 +180,17 @@ export function GuestAccountScreen() {
           />
         </View>
       </View>
+
+      <ActionCard
+        icon={icons.favorites}
+        title={t(`المفضلة (${favorites.length})`, `Favourites (${favorites.length})`)}
+        description={t(
+          'المنتجات التي حفظتها على هذا الجهاز',
+          'Products saved on this device',
+        )}
+        horizontal
+        onPress={() => router.push('/favorites')}
+      />
 
       <ActionCard
         icon={icons.support}
