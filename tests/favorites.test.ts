@@ -40,15 +40,13 @@ test('favorites are stored locally and restored after repository recreation', as
 });
 
 test('favorites are deduplicated by product ID while preserving the newest copy', async () => {
-  const repository = new FavoritesRepository(memoryStorage());
   const storage = memoryStorage();
-  const repo = new FavoritesRepository(storage);
-  await repo.save([product, { ...product, title: 'Updated title' }]);
-  const restored = await repo.load();
+  const repository = new FavoritesRepository(storage);
+  await repository.save([product, { ...product, title: 'Updated title' }]);
+  const restored = await repository.load();
 
   assert.equal(restored.length, 1);
   assert.equal(restored[0].title, 'Updated title');
-  void repository;
 });
 
 test('invalid local JSON is safely cleared', async () => {
