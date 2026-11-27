@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, ViewStyle } from 'react-native';
+import { Pressable } from 'react-native';
+import type { ViewStyle } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import type { Product } from '../core/types';
 import { useFavorites } from '../favorites-context';
