@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as Linking from 'expo-linking';
 import { AppProvider, useApp } from '../session-context';
 import { CheckoutProvider } from '../checkout-context';
+import { FavoritesProvider } from '../favorites-context';
 import { Busy, colors, styles, Txt, useText } from '../components/ui';
 import { config } from '../config';
 import { checkoutReturn, resolveMediaUrl } from '../core/api';
@@ -13,9 +14,11 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <AppProvider>
-        <CheckoutProvider>
-          <Shell />
-        </CheckoutProvider>
+        <FavoritesProvider>
+          <CheckoutProvider>
+            <Shell />
+          </CheckoutProvider>
+        </FavoritesProvider>
       </AppProvider>
     </SafeAreaProvider>
   );
