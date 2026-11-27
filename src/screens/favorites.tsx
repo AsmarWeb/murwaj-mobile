@@ -31,6 +31,9 @@ export function FavoritesScreen() {
           <Text style={{ color: '#E8DED8', fontSize: 13, lineHeight: 21, textAlign: locale === 'ar' ? 'right' : 'left', writingDirection: locale === 'ar' ? 'rtl' : 'ltr' }}>
             {t('اجمع المنتجات التي لفتت انتباهك وارجع إليها وقتما تشاء.', 'Keep the products you love together and come back whenever you like.')}
           </Text>
+          <Text style={{ color: '#C9BBB2', fontSize: 11, lineHeight: 18, textAlign: locale === 'ar' ? 'right' : 'left', writingDirection: locale === 'ar' ? 'rtl' : 'ltr' }}>
+            {t('قد تتغير الأسعار والتوفر؛ راجع تفاصيل المنتج قبل الشراء.', 'Prices and availability may change. Check product details before purchasing.')}
+          </Text>
         </View>
 
         <View style={{ alignSelf: locale === 'ar' ? 'flex-end' : 'flex-start', flexDirection: locale === 'ar' ? 'row-reverse' : 'row', alignItems: 'center', gap: 7, paddingHorizontal: 11, paddingVertical: 7, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)' }}>
