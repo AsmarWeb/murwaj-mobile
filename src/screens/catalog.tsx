@@ -588,7 +588,7 @@ function ProductCard({
           style={{
             position: 'absolute',
             top: 8,
-            [locale === 'ar' ? 'left' : 'right']: 8,
+            [locale === 'ar' ? 'right' : 'left']: 8,
           }}
         />
       </View>
